@@ -169,7 +169,7 @@ class TomTomClient:
 
     # --- Buildery URL kafelkow (do uzycia we froncie) ------------------------
     def basemap_tile_url(self) -> str:
-        return f"{BASE_URL}/map/1/tile/basic/main/{{z}}/{{x}}/{{y}}.png?key={self.api_key}"
+        return f"{BASE_URL}/map/1/tile/basic/night/{{z}}/{{x}}/{{y}}.png?key={self.api_key}"
 
     def flow_tile_url(self, style: str = "relative0") -> str:
         return (

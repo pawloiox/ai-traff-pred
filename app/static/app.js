@@ -86,11 +86,17 @@ function addLegend() {
   legend.onAdd = () => {
     const div = L.DomUtil.create("div", "legend");
     div.innerHTML =
-      "<div><strong>Kongestia</strong></div>" +
+      '<div class="legend-title">Punkty pomiarowe</div>' +
       legendRow("ok", "Plynnie") +
       legendRow("warning", "Zwolnienie") +
       legendRow("critical", "Zator / zamkniecie") +
-      legendRow("unknown", "Brak danych");
+      legendRow("unknown", "Brak danych") +
+      '<div class="legend-sep"></div>' +
+      '<div class="legend-title">Zdarzenia (TomTom)</div>' +
+      legendArrow("warning", "Zwolnienie ruchu") +
+      legendArrow("critical", "Zator / zamkniecie kierunku") +
+      '<div class="legend-note">Strzalki to utrudnienia z danych TomTom. ' +
+      "Wskazuja kierunek nitki, ktorej dotyczy zdarzenie; kolor oznacza jego nasilenie.</div>";
     return div;
   };
   legend.addTo(state.map);
@@ -100,15 +106,20 @@ function legendRow(level, label) {
   return `<div class="row"><span class="swatch" style="background:${LEVEL_COLORS[level]}"></span>${label}</div>`;
 }
 
+function legendArrow(level, label) {
+  return `<div class="row"><span class="arrow" style="color:${LEVEL_COLORS[level]}">&#10148;</span>${label}</div>`;
+}
+
 function createMarkers() {
   state.ports.forEach((port) => {
     port.points.forEach((pt) => {
       const marker = L.circleMarker([pt.lat, pt.lon], {
-        radius: 9,
-        color: "#0d1117",
-        weight: 2,
+        radius: 8,
+        color: "#0b0f17",
+        weight: 1.5,
         fillColor: LEVEL_COLORS.unknown,
-        fillOpacity: 0.9,
+        fillOpacity: 0.95,
+        className: "point-marker",
       }).addTo(state.map);
       marker.bindPopup(`<strong>${pt.name}</strong><br/>${pt.road}<br/>Brak danych`);
       state.markers[pt.id] = marker;
@@ -196,7 +207,12 @@ function updateMarkers(points) {
     if (!marker) return;
     const level = p.level || "unknown";
     marker.setStyle({ fillColor: LEVEL_COLORS[level] });
-    marker.setRadius(level === "critical" ? 12 : 9);
+    marker.setRadius(level === "critical" ? 11 : 8);
+    const path = marker.getElement && marker.getElement();
+    if (path) {
+      path.classList.toggle("marker-critical", level === "critical");
+      path.classList.toggle("marker-warning", level === "warning");
+    }
     const speed =
       p.current_speed != null
         ? `${Math.round(p.current_speed)} / ${Math.round(p.free_flow_speed)} km/h`
