@@ -13,12 +13,7 @@ const state = {
   cpiMode: false,
   horizon: 1,
   cpiByPoint: {}, // point_id -> wynik CPI dla biezacego horyzontu
-  sourceLayers: { tristar: null, zditm: null }, // L.layerGroup dodatkowych zrodel
-  activeSources: { tristar: false, zditm: false },
 };
-
-// Kolory warstw zrodel (odrozniane od markerow kongestii).
-const SOURCE_COLOR = { tristar: "#3fd0d6", zditm: "#b083f0" };
 
 const LEVEL_COLORS = {
   ok: "#2ea043",
@@ -144,12 +139,6 @@ function addLegend() {
         '<div class="legend-title">Zdarzenia (TomTom)</div>' +
         legendArrow("warning", "Zwolnienie ruchu") +
         legendArrow("critical", "Zator / zamkniecie kierunku") +
-        '<div class="legend-sep"></div>' +
-        '<div class="legend-title">Zrodla danych</div>' +
-        '<div class="row"><span class="swatch swatch-src" style="background:#3fd0d6"></span>TRISTAR &middot; measured</div>' +
-        '<div class="row"><span class="swatch swatch-src swatch-proxy" style="background:#b083f0"></span>ZDiTM &middot; proxy</div>' +
-        '<div class="legend-note">Markery zrodel pojawiaja sie po wlaczeniu filtra. ' +
-        "Przerywany obrys = dane proxy (nizsza pewnosc).</div>" +
         '<div class="legend-note">Strzalki to utrudnienia z danych TomTom. ' +
         "Wskazuja kierunek nitki, ktorej dotyczy zdarzenie; kolor oznacza jego nasilenie.</div>" +
       "</div>";
@@ -245,13 +234,6 @@ function initControls() {
     horizonVal.textContent = `+${state.horizon}h`;
     if (state.cpiMode) await refreshCpiView();
   });
-
-  document.getElementById("tristarToggle").addEventListener("change", (e) =>
-    toggleSource("tristar", e.target.checked)
-  );
-  document.getElementById("zditmToggle").addEventListener("change", (e) =>
-    toggleSource("zditm", e.target.checked)
-  );
 }
 
 function toggleLayer(layer, on) {
@@ -294,10 +276,6 @@ async function refreshAll() {
   } else {
     updateMarkers(status.points);
   }
-  // Odswiez aktywne warstwy zrodel (TRISTAR/ZDiTM).
-  ["tristar", "zditm"].forEach((s) => {
-    if (state.activeSources[s]) loadSource(s);
-  });
   renderAll();
 }
 
@@ -387,59 +365,6 @@ function cpiPopupHtml(c) {
 async function refreshCpiView() {
   await fetchCpi();
   applyCpiToMarkers();
-}
-
-// --- Warstwy zrodel danych (TRISTAR / ZDiTM) z metka confidence ---------------
-function sourcePopup(source, m) {
-  if (source === "tristar") {
-    const inten = m.intensity != null ? `${Math.round(m.intensity)} poj/h` : "b.d.";
-    return `<strong>TRISTAR</strong> <span class="conf conf-measured">measured</span><br/>
-      ${m.point_name || ""}<br/>Natezenie: <b>${inten}</b>`;
-  }
-  const spd = m.current_speed != null ? `${Math.round(m.current_speed)} km/h` : "b.d.";
-  return `<strong>ZDiTM</strong> <span class="conf conf-proxy">proxy</span><br/>
-    ${m.point_name || ""}<br/>Predkosc (p75): <b>${spd}</b><br/>Kongestia proxy: ${fmtPct(m.congestion_ratio)}`;
-}
-
-function buildSourceMarkers(source, rows) {
-  const grp = L.layerGroup();
-  const color = SOURCE_COLOR[source];
-  rows.forEach((m) => {
-    if (m.lat == null || m.lon == null) return;
-    const proxy = m.confidence_label === "proxy";
-    const mk = L.circleMarker([m.lat, m.lon], {
-      radius: 6,
-      color,
-      weight: 2,
-      dashArray: proxy ? "3" : null,
-      fillColor: color,
-      fillOpacity: 0.25,
-    });
-    mk.bindPopup(sourcePopup(source, m));
-    grp.addLayer(mk);
-  });
-  return grp;
-}
-
-async function loadSource(source) {
-  try {
-    const data = await getJSON(`/api/${source}`);
-    if (state.sourceLayers[source]) state.map.removeLayer(state.sourceLayers[source]);
-    state.sourceLayers[source] = buildSourceMarkers(source, data.measurements || []);
-    if (state.activeSources[source]) state.sourceLayers[source].addTo(state.map);
-  } catch (err) {
-    console.error(`zrodlo ${source}`, err);
-  }
-}
-
-async function toggleSource(source, on) {
-  state.activeSources[source] = on;
-  if (on) {
-    await loadSource(source);
-  } else if (state.sourceLayers[source]) {
-    state.map.removeLayer(state.sourceLayers[source]);
-    state.sourceLayers[source] = null;
-  }
 }
 
 function filterPort(rows) {

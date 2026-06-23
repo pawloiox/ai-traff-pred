@@ -309,13 +309,6 @@ html, body {
 .conf-proxy { background: rgba(210,153,34,.18); color: var(--warning); }
 .conf-predicted { background: rgba(88,166,255,.18); color: var(--accent); }
 
-/* --- Filtr zrodel: legenda i toggle --- */
-.legend .swatch-src { box-shadow: none; border: 2px solid currentColor; }
-.legend .swatch-proxy { border-style: dashed; }
-.src-tristar { color: #3fd0d6; }
-.src-zditm { color: #b083f0; }
-.src-tristar input, .src-zditm input { accent-color: currentColor; }
-
 /* --- Markery: subtelna poswiata --- */
 .point-marker { transition: filter .2s ease; }
 .marker-warning { filter: drop-shadow(0 0 4px rgba(210, 153, 34, 0.7)); }
