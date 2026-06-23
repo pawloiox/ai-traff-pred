@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from . import portdata
 from .config import settings
 from .storage import storage
 
@@ -97,10 +98,33 @@ def bottlenecks(window_minutes: Optional[int] = None, limit: int = 10) -> List[D
     return ranked[:limit]
 
 
-def _series_for_point(point_id: str, window_minutes: int) -> List[Dict[str, Any]]:
+def _series_for_point(
+    point_id: str, window_minutes: int, sources: tuple = ("tomtom",)
+) -> List[Dict[str, Any]]:
     since = time.time() - window_minutes * 60
-    rows = storage.measurements_since(since, point_id=point_id)
+    if sources == ("tomtom",):
+        rows = storage.measurements_since(since, point_id=point_id)
+    else:
+        rows = storage.measurements_since(since, point_id=point_id, source=None)
+        rows = [r for r in rows if r.get("source") in sources]
     return [r for r in rows if r.get("congestion_ratio") is not None]
+
+
+def _tristar_load_excess(point_id: str) -> float:
+    """Wzgledna nadwyzka natezenia TRISTAR (Gdynia) ponad mediane z ostatnich godzin [0,1].
+
+    TRISTAR daje natezenie (poj/h), nie predkosc - wiec uzywamy go jako sygnalu
+    'nietypowo wysokie obciazenie drogi', nie wprost kongestii.
+    """
+    since = time.time() - 6 * 3600
+    rows = storage.measurements_since(since, point_id=point_id, source="tristar")
+    vals = [r["intensity"] for r in rows if r.get("intensity")]
+    if len(vals) < 3:
+        return 0.0
+    med = float(np.median(vals))
+    if med <= 0:
+        return 0.0
+    return max(0.0, min(1.0, (vals[-1] - med) / med))
 
 
 def detect_anomalies() -> List[Dict[str, Any]]:
@@ -170,7 +194,10 @@ def predict_trends() -> List[Dict[str, Any]]:
     latest = {r["point_id"]: r for r in storage.latest_measurements()}
 
     for point_id, last in latest.items():
-        series = _series_for_point(point_id, settings.prediction_window_minutes)
+        # Szereg trendu uwzglednia ZDiTM (proxy ratio) obok TomTom - zywy wplyw na trend.
+        series = _series_for_point(
+            point_id, settings.prediction_window_minutes, sources=("tomtom", "zditm")
+        )
         if len(series) < 3:
             continue
 
@@ -183,11 +210,24 @@ def predict_trends() -> List[Dict[str, Any]]:
 
         now_min = t_min[-1]
         horizon = settings.prediction_horizon_minutes
-        predicted = float(slope * (now_min + horizon) + intercept)
-        predicted = max(0.0, min(1.0, predicted))
+        base_pred = float(slope * (now_min + horizon) + intercept)
+        base_pred = max(0.0, min(1.0, base_pred))
 
         slope_per_10min = slope * 10.0
-        rising = slope_per_10min >= settings.prediction_rising_slope
+
+        # --- Augmentacja zywymi zrodlami (backend, schemat wyjscia zachowany) ---
+        # Presja portu (zywe statki + Codeco) jako narastajacy popyt na ciezarowki.
+        pp = portdata.port_pressure_for_point(point_id, settings.pred_port_lookahead_h)
+        port_term = settings.pred_port_weight * pp["total"]
+        # TRISTAR (Gdynia): nadwyzka natezenia ponad typowe.
+        tri_load = _tristar_load_excess(point_id)
+        tri_term = settings.pred_tristar_weight * tri_load
+
+        predicted = max(0.0, min(1.0, base_pred + port_term + tri_term))
+        current = float(ratios[-1])
+        rising = (predicted - current >= settings.prediction_rising_slope) or (
+            slope_per_10min >= settings.prediction_rising_slope
+        )
 
         predictions.append(
             {
@@ -195,13 +235,18 @@ def predict_trends() -> List[Dict[str, Any]]:
                 "point_name": last["point_name"],
                 "road": last.get("road"),
                 "port_id": last["port_id"],
-                "current_ratio": round(float(ratios[-1]), 3),
+                "current_ratio": round(current, 3),
                 "slope_per_10min": round(float(slope_per_10min), 4),
                 "predicted_ratio": round(predicted, 3),
                 "horizon_minutes": horizon,
                 "rising": bool(rising),
                 "samples": len(series),
                 "ts": last.get("ts"),
+                # Pola informacyjne (front ich nie renderuje) - rozklad wplywu zrodel:
+                "predicted_ratio_base": round(base_pred, 3),
+                "port_pressure": round(pp["total"], 3),
+                "port_pressure_ship": (pp.get("dominant_ship") or {}).get("name"),
+                "tristar_load": round(tri_load, 3),
             }
         )
 

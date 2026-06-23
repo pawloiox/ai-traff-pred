@@ -65,6 +65,11 @@ class Settings:
     prediction_horizon_minutes: int = 20  # horyzont prognozy
     prediction_rising_slope: float = 0.05  # min. przyrost ratio / 10 min uznany za narastanie
 
+    # Augmentacja predykcji zywymi zrodlami (TRISTAR/ZDiTM/presja portu).
+    pred_port_weight: float = 0.4         # waga presji portu doliczanej do prognozy
+    pred_port_lookahead_h: float = 3.0    # horyzont (h) presji portu jako narastajacy popyt
+    pred_tristar_weight: float = 0.15     # waga nadwyzki natezenia TRISTAR (Gdynia)
+
     # Promien (metry) korelacji incydentu z punktem przy raportach.
     incident_link_radius_m: float = 1500.0
 
