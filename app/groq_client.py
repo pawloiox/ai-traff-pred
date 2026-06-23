@@ -21,7 +21,10 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 _FIELDS_DESC = (
     '- "headline": krotki naglowek (max ~8 slow),\n'
-    '- "cause": prawdopodobna przyczyna utrudnienia (1 zdanie),\n'
+    '- "cause": prawdopodobna przyczyna utrudnienia (1 zdanie). Jesli podano dominujacy '
+    "skladnik CPI, oprzyj na nim przyczyne (presja_portu = nadchodzacy statek/fala "
+    "ciezarowek z terminala; trend = narastajaca dynamika; baseline = typowy ruch o tej "
+    "porze; incydenty = zdarzenie drogowe),\n"
     '- "recommendation": konkretna rekomendacja dzialania dla dyspozytora (1-2 zdania),\n'
     '- "summary": pelne podsumowanie laczace stan, przyczyne, rekomendacje i trend '
     "(2-3 zdania).\n"
@@ -82,6 +85,23 @@ def _situation_to_prompt(s: Dict[str, Any]) -> str:
         )
     else:
         lines.append("Pobliski incydent TomTom: brak")
+
+    # Rozklad CPI (Indeks Presji Zatorowej) - dominujacy skladnik = przyczyna.
+    cpi_s = s.get("cpi")
+    if cpi_s:
+        lines.append(
+            f"CPI (prognoza na {round(cpi_s.get('horizon_h', 0))}h): {cpi_s.get('total')} "
+            f"[baseline={cpi_s.get('baseline')}, trend={cpi_s.get('trend')}, "
+            f"presja_portu={cpi_s.get('port_pressure')}, incydenty={cpi_s.get('incidents')}]"
+        )
+        lines.append(f"Dominujacy skladnik CPI (glowna przyczyna): {cpi_s.get('dominant_component')}")
+        det = cpi_s.get("port_pressure_detail") or {}
+        ship = det.get("dominant_ship")
+        if ship:
+            lines.append(
+                f"Najwiekszy nadchodzacy statek: {ship.get('name')} (DWT {round(ship.get('dwt', 0))}) "
+                f"- fala ciezarowek z terminala po cumowaniu"
+            )
 
     return "\n".join(lines)
 

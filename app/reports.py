@@ -13,9 +13,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
-from . import analysis, groq_client
+from . import analysis, cpi, groq_client
 from .config import settings
 from .storage import storage
+
+# Horyzont (h), na ktory liczymy CPI dla narracji raportu (forward-looking przyczyna).
+_CPI_REPORT_HORIZON_H = 2.0
 
 # Bufor raportow odswiezany w cyklu pollingu.
 _cache: Dict[str, Any] = {"ts": None, "reports": []}
@@ -30,6 +33,8 @@ _SEVERITY = {"critical": 3, "warning": 2, "ok": 1, "unknown": 0}
 def _situation_signature(s: Dict[str, Any]) -> str:
     """Stabilny podpis sytuacji - zmienia sie tylko przy istotnej zmianie stanu."""
     inc = s.get("linked_incident") or {}
+    cpi_s = s.get("cpi") or {}
+    ship = (cpi_s.get("port_pressure_detail") or {}).get("dominant_ship") or {}
     parts = [
         str(s.get("point_id")),
         str(s.get("level")),
@@ -39,6 +44,8 @@ def _situation_signature(s: Dict[str, Any]) -> str:
         f"{round((s.get('avg_ratio') or 0), 2)}",
         f"{round((s.get('max_ratio') or 0), 2)}",
         str(inc.get("incident_id") or "-"),
+        str(cpi_s.get("dominant_component") or "-"),
+        str(ship.get("name") or "-"),
     ]
     return "|".join(parts)
 
@@ -90,6 +97,10 @@ def _build_situations(limit: int = 20) -> List[Dict[str, Any]]:
             continue
 
         incident = _nearest_incident(b["port_id"], b.get("lat"), b.get("lon"))
+        try:
+            cpi_result = cpi.compute_cpi(pid, _CPI_REPORT_HORIZON_H)
+        except Exception:  # noqa: BLE001 - raport nie moze sie wywrocic przez blad CPI
+            cpi_result = None
         situations.append(
             {
                 "point_id": pid,
@@ -104,6 +115,7 @@ def _build_situations(limit: int = 20) -> List[Dict[str, Any]]:
                 "max_ratio": b["max_ratio"],
                 "linked_incident": incident,
                 "prediction": pred,
+                "cpi": cpi_result,
             }
         )
 
@@ -115,15 +127,33 @@ def _build_situations(limit: int = 20) -> List[Dict[str, Any]]:
 
 
 # --- Fallback regulowy ------------------------------------------------------
+def _incident_text(incident: Dict[str, Any]) -> str:
+    label = incident.get("category_label") or "zdarzenie drogowe"
+    desc = incident.get("description") or ""
+    delay = incident.get("delay_seconds")
+    delay_txt = f", opoznienie ok. {round(delay / 60)} min" if delay else ""
+    detail = f" ({desc})" if desc and desc != "Brak opisu" else ""
+    return f"{label}{detail} w odleglosci {incident['distance_m']} m{delay_txt}"
+
+
 def _cause_text(situation: Dict[str, Any]) -> str:
+    """Przyczyna wg dominujacego skladnika CPI; incydent ma pierwszenstwo gdy istnieje."""
     incident = situation.get("linked_incident")
+    cpi_s = situation.get("cpi") or {}
+    dom = cpi_s.get("dominant_component")
+    ship = (cpi_s.get("port_pressure_detail") or {}).get("dominant_ship") or {}
+
+    if dom == "port_pressure" and ship.get("name"):
+        return (
+            f"dominuje presja portu - statek {ship['name']} (DWT {round(ship['dwt'])}) "
+            f"cumuje wkrotce, spodziewana fala ciezarowek z terminala"
+        )
     if incident:
-        label = incident.get("category_label") or "zdarzenie drogowe"
-        desc = incident.get("description") or ""
-        delay = incident.get("delay_seconds")
-        delay_txt = f", opoznienie ok. {round(delay / 60)} min" if delay else ""
-        detail = f" ({desc})" if desc and desc != "Brak opisu" else ""
-        return f"{label}{detail} w odleglosci {incident['distance_m']} m{delay_txt}"
+        return _incident_text(incident)
+    if dom == "trend":
+        return "dominuje narastajaca dynamika ruchu (trend wzrostowy w ostatnich pomiarach)"
+    if dom == "baseline":
+        return "dominuje typowe natezenie ruchu o tej porze (wzorzec godziny i dnia tygodnia)"
     return "brak zgloszonego incydentu - prawdopodobnie ruch godziny szczytu / natezenie pojazdow"
 
 
@@ -201,6 +231,7 @@ def _assemble(situation: Dict[str, Any], narrative: Dict[str, str], source: str,
         "recommendation": narrative.get("recommendation") or "",
         "linked_incident": situation.get("linked_incident"),
         "prediction": situation.get("prediction"),
+        "cpi": situation.get("cpi"),
         "summary": narrative.get("summary") or "",
         "source": source,
     }
