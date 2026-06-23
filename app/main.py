@@ -123,6 +123,20 @@ def api_cpi(point_id: str = Query(...), horizon: float = Query(1.0, ge=1, le=6))
     return cpi.compute_cpi(point_id, horizon)
 
 
+@app.get("/api/cpi/all")
+def api_cpi_all(horizon: float = Query(1.0, ge=1, le=6)):
+    """CPI z rozkladem dla wszystkich monitorowanych punktow (kolorowanie mapy wg horyzontu)."""
+    from . import cpi
+    from .ports import all_points
+
+    points = []
+    for port, point in all_points():
+        result = cpi.compute_cpi(point.id, horizon)
+        points.append({**result, "point_name": point.name, "port_id": port.id,
+                       "lat": point.lat, "lon": point.lon, "road": point.road})
+    return {"horizon": horizon, "points": points}
+
+
 @app.get("/api/zditm")
 def api_zditm():
     """Surowe, najnowsze pomiary warstwy ZDiTM (Szczecin) - proxy z predkosci GPS."""
