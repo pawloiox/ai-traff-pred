@@ -60,7 +60,7 @@ function initMap() {
     maxBounds: bounds.pad(0.05),
     maxBoundsViscosity: 1.0,
     minZoom: 8
-  }).setView([c.lat, c.lon], 12);
+  }).setView([c.lat, c.lon], state.selectedPort.zoom || 12);
 
   L.tileLayer(state.tiles.basemap, {
     maxZoom: 22,
@@ -138,7 +138,7 @@ function initControls() {
   select.addEventListener("change", () => {
     const port = state.ports.find((p) => p.id === select.value);
     state.selectedPort = port;
-    state.map.setView([port.center.lat, port.center.lon], 12);
+    state.map.setView([port.center.lat, port.center.lon], port.zoom || 12);
     renderAll();
   });
 

@@ -43,6 +43,7 @@ def api_ports():
                 "id": p.id,
                 "name": p.name,
                 "center": {"lat": p.center[0], "lon": p.center[1]},
+                "zoom": p.zoom,
                 "bbox": p.bbox,
                 "points": [
                     {

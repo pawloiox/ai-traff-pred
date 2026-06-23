@@ -37,6 +37,7 @@ class Port:
     center: Tuple[float, float]  # (lat, lon) - srodek mapy
     bbox: Tuple[float, float, float, float]
     points: List[MonitoredPoint] = field(default_factory=list)
+    zoom: int = 12  # poziom przyblizenia mapy po wyborze portu
 
 
 PORTS: List[Port] = [
@@ -101,8 +102,9 @@ PORTS: List[Port] = [
     Port(
         id="szczecin_swinoujscie",
         name="Port Szczecin-Swinoujscie",
-        center=(53.6500, 14.4000),
+        center=(53.6600, 14.4300),
         bbox=(14.150, 53.350, 14.750, 53.950),
+        zoom=10,
         points=[
             MonitoredPoint(
                 id="szcz_swin_s3",
