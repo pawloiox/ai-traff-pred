@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+if "NO_PROXY" in os.environ:
+    os.environ["NO_PROXY"] = ",".join(p for p in os.environ["NO_PROXY"].split(",") if ":" not in p)
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -138,7 +142,9 @@ def api_zditm():
 @app.post("/api/refresh")
 async def api_refresh():
     await scheduler.poll_once()
+    await scheduler.poll_weather()
     return {"status": "ok", "last_poll": scheduler.last_poll_ts()}
+
 
 
 @app.get("/api/risk-scores")
