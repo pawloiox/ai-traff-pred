@@ -10,9 +10,6 @@ const state = {
   incidentsLayer: null,
   markers: {}, // point_id -> L.CircleMarker
   selectedPort: null,
-  cpiMode: false,
-  horizon: 1,
-  cpiByPoint: {}, // point_id -> wynik CPI dla biezacego horyzontu
 };
 
 const LEVEL_COLORS = {
@@ -21,24 +18,6 @@ const LEVEL_COLORS = {
   critical: "#f85149",
   unknown: "#6e7681",
 };
-
-// Progi CPI (0..1) - spojne z backendem (ratio_warning / ratio_critical).
-const CPI_WARNING = 0.30;
-const CPI_CRITICAL = 0.55;
-
-const COMPONENT_LABELS = {
-  baseline: "Baseline",
-  trend: "Trend",
-  port_pressure: "Presja portu",
-  incidents: "Incydenty",
-};
-
-function cpiLevel(total) {
-  if (total == null) return "unknown";
-  if (total >= CPI_CRITICAL) return "critical";
-  if (total >= CPI_WARNING) return "warning";
-  return "ok";
-}
 
 function fmtPct(r) {
   if (r === null || r === undefined) return "b.d.";
@@ -215,25 +194,6 @@ function initControls() {
       btn.textContent = "Odswiez teraz";
     }
   });
-
-  const cpiToggle = document.getElementById("cpiToggle");
-  const horizonBox = document.getElementById("horizonBox");
-  const horizonInput = document.getElementById("horizon");
-  const horizonVal = document.getElementById("horizonVal");
-  cpiToggle.addEventListener("change", async (e) => {
-    state.cpiMode = e.target.checked;
-    horizonBox.hidden = !state.cpiMode;
-    if (state.cpiMode) {
-      await refreshCpiView();
-    } else if (cache.status) {
-      updateMarkers(cache.status.points); // przywroc kolorowanie TomTom
-    }
-  });
-  horizonInput.addEventListener("input", async (e) => {
-    state.horizon = parseInt(e.target.value, 10);
-    horizonVal.textContent = `+${state.horizon}h`;
-    if (state.cpiMode) await refreshCpiView();
-  });
 }
 
 function toggleLayer(layer, on) {
@@ -271,11 +231,7 @@ async function refreshAll() {
   document.getElementById("lastPoll").textContent =
     "Ostatni pomiar: " + fmtTime(status.last_poll);
 
-  if (state.cpiMode) {
-    await refreshCpiView();
-  } else {
-    updateMarkers(status.points);
-  }
+  updateMarkers(status.points);
   renderAll();
 }
 
@@ -302,69 +258,6 @@ function updateMarkers(points) {
       (p.road_closure ? "<br/><b>DROGA ZAMKNIETA</b>" : "")
     );
   });
-}
-
-// --- CPI: prognoza z rozkladem na skladniki ---------------------------------
-async function fetchCpi() {
-  try {
-    const data = await getJSON(`/api/cpi/all?horizon=${state.horizon}`);
-    state.cpiByPoint = {};
-    (data.points || []).forEach((c) => {
-      state.cpiByPoint[c.point_id] = c;
-    });
-  } catch (err) {
-    console.error("CPI fetch error", err);
-  }
-}
-
-function applyCpiToMarkers() {
-  Object.entries(state.markers).forEach(([pid, marker]) => {
-    const c = state.cpiByPoint[pid];
-    const level = c ? cpiLevel(c.total) : "unknown";
-    marker.setStyle({ fillColor: LEVEL_COLORS[level] });
-    marker.setRadius(level === "critical" ? 11 : 8);
-    const path = marker.getElement && marker.getElement();
-    if (path) {
-      path.classList.toggle("marker-critical", level === "critical");
-      path.classList.toggle("marker-warning", level === "warning");
-    }
-    marker.setPopupContent(c ? cpiPopupHtml(c) : "<strong>Brak danych CPI</strong>");
-  });
-}
-
-function compBar(name, value, dominant) {
-  const pct = Math.round((value || 0) * 100);
-  const isDom = name === dominant;
-  return `<div class="cpi-comp${isDom ? " dom" : ""}">
-    <span class="cpi-comp-label">${COMPONENT_LABELS[name]}${isDom ? " &#9733;" : ""}</span>
-    <span class="cpi-comp-bar"><span class="cpi-comp-fill ${name}" style="width:${pct}%"></span></span>
-    <span class="cpi-comp-val">${pct}%</span>
-  </div>`;
-}
-
-function cpiPopupHtml(c) {
-  const level = cpiLevel(c.total);
-  const det = c.port_pressure_detail || {};
-  const ship = det.dominant_ship;
-  const shipLine = ship
-    ? `<div class="cpi-ship">&#9875; ${ship.name} (DWT ${Math.round(ship.dwt)})</div>`
-    : "";
-  const comps = ["baseline", "trend", "port_pressure", "incidents"]
-    .map((n) => compBar(n, c[n], c.dominant_component))
-    .join("");
-  return `<div class="cpi-popup">
-    <strong>${c.point_name}</strong><br/><span class="cpi-road">${c.road || ""}</span>
-    <div class="cpi-total badge ${level}">CPI +${Math.round(c.horizon_h)}h: ${fmtPct(c.total)}</div>
-    <div class="cpi-comps">${comps}</div>
-    ${shipLine}
-    <div class="cpi-foot">Dominuje: <b>${COMPONENT_LABELS[c.dominant_component] || "-"}</b>
-      &middot; pewnosc: <span class="conf conf-${c.confidence}">${c.confidence}</span></div>
-  </div>`;
-}
-
-async function refreshCpiView() {
-  await fetchCpi();
-  applyCpiToMarkers();
 }
 
 function filterPort(rows) {
