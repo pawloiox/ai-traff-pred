@@ -60,6 +60,7 @@ def api_ports():
         ],
         "tiles": {
             "basemap": _tile_client.basemap_tile_url(),
+            "basemap_light": _tile_client.basemap_tile_url_light(),
             "flow": _tile_client.flow_tile_url(),
             "incidents": _tile_client.incidents_tile_url(),
         },

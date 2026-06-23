@@ -171,6 +171,9 @@ class TomTomClient:
     def basemap_tile_url(self) -> str:
         return f"{BASE_URL}/map/1/tile/basic/night/{{z}}/{{x}}/{{y}}.png?key={self.api_key}"
 
+    def basemap_tile_url_light(self) -> str:
+        return f"{BASE_URL}/map/1/tile/basic/main/{{z}}/{{x}}/{{y}}.png?key={self.api_key}"
+
     def flow_tile_url(self, style: str = "relative0") -> str:
         return (
             f"{BASE_URL}/traffic/map/4/tile/flow/{style}/"

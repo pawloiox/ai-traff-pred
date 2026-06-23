@@ -16,6 +16,24 @@
   --blur: saturate(120%) blur(6px);
 }
 
+[data-theme="light"] {
+  --bg: #f0f2f5;
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-solid: #ffffff;
+  --panel-2: rgba(235, 238, 244, 0.7);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --text: #1a1d23;
+  --muted: #5a6270;
+  --ok: #1a7f37;
+  --warning: #9a6700;
+  --critical: #cf222e;
+  --unknown: #6e7781;
+  --accent: #0969da;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --blur: saturate(120%) blur(6px);
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -24,6 +42,7 @@ html, body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
+  transition: background-color .3s ease, color .3s ease;
 }
 
 #app { display: flex; flex-direction: column; height: 100vh; }
@@ -290,4 +309,75 @@ html, body {
 @keyframes markerPulse {
   0%, 100% { filter: drop-shadow(0 0 4px rgba(248, 81, 73, 0.6)); }
   50% { filter: drop-shadow(0 0 9px rgba(248, 81, 73, 0.95)); }
+}
+
+/* --- Theme toggle button --- */
+#themeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 18px;
+  transition: border-color .15s ease, background .15s ease, transform .2s ease;
+}
+#themeToggle:hover {
+  border-color: var(--accent);
+  transform: rotate(15deg) scale(1.08);
+}
+#themeToggle:active {
+  transform: rotate(0deg) scale(0.95);
+}
+
+.theme-icon { display: none; line-height: 1; }
+
+/* Dark mode (default): show moon */
+:root .theme-icon--dark { display: inline; }
+:root .theme-icon--light { display: none; }
+
+/* Light mode: show sun */
+[data-theme="light"] .theme-icon--dark { display: none; }
+[data-theme="light"] .theme-icon--light { display: inline; }
+
+/* --- Light-mode overrides for Leaflet controls --- */
+[data-theme="light"] .leaflet-container { background: var(--bg); }
+[data-theme="light"] .leaflet-control-zoom a {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+[data-theme="light"] .leaflet-control-zoom a:hover {
+  background: rgba(235, 238, 244, 0.95) !important;
+  color: var(--accent) !important;
+}
+[data-theme="light"] .leaflet-control-attribution {
+  background: rgba(240, 242, 245, 0.75) !important;
+  color: var(--muted) !important;
+}
+[data-theme="light"] .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border-strong);
+}
+[data-theme="light"] .leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid var(--border-strong);
+}
+[data-theme="light"] .legend {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+/* Smooth transitions for theme-aware elements */
+#topbar, #sidebar, .card, .legend, .tab,
+.controls select, .controls button,
+.leaflet-control-zoom a,
+.leaflet-control-attribution,
+.leaflet-popup-content-wrapper {
+  transition: background-color .3s ease, color .3s ease, border-color .3s ease, box-shadow .3s ease;
 }

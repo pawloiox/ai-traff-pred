@@ -1,11 +1,20 @@
 "use strict";
 
+// --- Theme: restore saved preference immediately to avoid flash ---
+(function initTheme() {
+  const saved = localStorage.getItem("theme");
+  if (saved === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+  }
+})();
+
 const REFRESH_MS = 30000;
 
 const state = {
   map: null,
   ports: [],
   tiles: null,
+  basemapLayer: null,
   flowLayer: null,
   incidentsLayer: null,
   markers: {}, // point_id -> L.CircleMarker
@@ -80,7 +89,9 @@ function initMap() {
     minZoom: 8
   }).setView([c.lat, c.lon], state.selectedPort.zoom || 12);
 
-  L.tileLayer(state.tiles.basemap, {
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  const basemapUrl = isLight ? state.tiles.basemap_light : state.tiles.basemap;
+  state.basemapLayer = L.tileLayer(basemapUrl, {
     maxZoom: 22,
     attribution: "&copy; TomTom",
   }).addTo(state.map);
@@ -147,9 +158,10 @@ function legendArrow(level, label) {
 function createMarkers() {
   state.ports.forEach((port) => {
     port.points.forEach((pt) => {
+      const strokeColor = document.documentElement.getAttribute("data-theme") === "light" ? "#e0e4ea" : "#0b0f17";
       const marker = L.circleMarker([pt.lat, pt.lon], {
         radius: 8,
-        color: "#0b0f17",
+        color: strokeColor,
         weight: 1.5,
         fillColor: LEVEL_COLORS.unknown,
         fillOpacity: 0.95,
@@ -193,6 +205,31 @@ function initControls() {
       btn.disabled = false;
       btn.textContent = "Odswiez teraz";
     }
+  });
+
+  // --- Theme toggle ---
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    const html = document.documentElement;
+    const isLight = html.getAttribute("data-theme") === "light";
+    if (isLight) {
+      html.removeAttribute("data-theme");
+      localStorage.setItem("theme", "dark");
+    } else {
+      html.setAttribute("data-theme", "light");
+      localStorage.setItem("theme", "light");
+    }
+    // Swap basemap tiles (night <-> main)
+    const newUrl = isLight ? state.tiles.basemap : state.tiles.basemap_light;
+    state.map.removeLayer(state.basemapLayer);
+    state.basemapLayer = L.tileLayer(newUrl, {
+      maxZoom: 22,
+      attribution: "&copy; TomTom",
+    }).addTo(state.map);
+    // Ensure basemap stays below overlay layers
+    state.basemapLayer.bringToBack();
+    // Update marker stroke color to match theme
+    const strokeColor = isLight ? "#0b0f17" : "#e0e4ea";
+    Object.values(state.markers).forEach((m) => m.setStyle({ color: strokeColor }));
   });
 }
 
