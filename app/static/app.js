@@ -86,17 +86,33 @@ function addLegend() {
   legend.onAdd = () => {
     const div = L.DomUtil.create("div", "legend");
     div.innerHTML =
-      '<div class="legend-title">Punkty pomiarowe</div>' +
-      legendRow("ok", "Plynnie") +
-      legendRow("warning", "Zwolnienie") +
-      legendRow("critical", "Zator / zamkniecie") +
-      legendRow("unknown", "Brak danych") +
-      '<div class="legend-sep"></div>' +
-      '<div class="legend-title">Zdarzenia (TomTom)</div>' +
-      legendArrow("warning", "Zwolnienie ruchu") +
-      legendArrow("critical", "Zator / zamkniecie kierunku") +
-      '<div class="legend-note">Strzalki to utrudnienia z danych TomTom. ' +
-      "Wskazuja kierunek nitki, ktorej dotyczy zdarzenie; kolor oznacza jego nasilenie.</div>";
+      '<button type="button" class="legend-toggle" aria-expanded="true" title="Pokaz / ukryj legende">' +
+        '<span class="legend-toggle-label">Legenda</span>' +
+        '<span class="legend-chevron">&#9662;</span>' +
+      "</button>" +
+      '<div class="legend-body">' +
+        '<div class="legend-title">Punkty pomiarowe</div>' +
+        legendRow("ok", "Plynnie") +
+        legendRow("warning", "Zwolnienie") +
+        legendRow("critical", "Zator / zamkniecie") +
+        legendRow("unknown", "Brak danych") +
+        '<div class="legend-sep"></div>' +
+        '<div class="legend-title">Zdarzenia (TomTom)</div>' +
+        legendArrow("warning", "Zwolnienie ruchu") +
+        legendArrow("critical", "Zator / zamkniecie kierunku") +
+        '<div class="legend-note">Strzalki to utrudnienia z danych TomTom. ' +
+        "Wskazuja kierunek nitki, ktorej dotyczy zdarzenie; kolor oznacza jego nasilenie.</div>" +
+      "</div>";
+
+    // Klikniecia/scroll w legendzie nie maja przesuwac/zoomowac mapy
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+
+    const btn = div.querySelector(".legend-toggle");
+    btn.addEventListener("click", () => {
+      const collapsed = div.classList.toggle("collapsed");
+      btn.setAttribute("aria-expanded", String(!collapsed));
+    });
     return div;
   };
   legend.addTo(state.map);

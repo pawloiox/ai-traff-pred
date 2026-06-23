@@ -168,11 +168,35 @@ html, body {
   -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 8px 12px 12px;
   font-size: 12px;
   line-height: 1.3;
   box-shadow: var(--shadow);
 }
+.legend-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+.legend-chevron { font-size: 11px; transition: transform .2s ease; line-height: 1; }
+.legend.collapsed {
+  padding: 8px 12px;
+}
+.legend.collapsed .legend-toggle { margin-bottom: 0; }
+.legend.collapsed .legend-chevron { transform: rotate(-90deg); }
+.legend.collapsed .legend-body { display: none; }
 .legend-title {
   font-size: 10px;
   font-weight: 700;
