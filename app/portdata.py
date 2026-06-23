@@ -22,13 +22,14 @@ dominujacym statkiem (dominant_ship) - material dla narracji w reports.py.
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from . import portcalls_live
 from .config import settings
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -41,15 +42,6 @@ TERMINAL_POINT: Dict[str, str] = {
     "DBPS": "szcz_gdanska",      # DB Port Szczecin, Szczecin
 }
 POINT_TERMINAL: Dict[str, str] = {v: k for k, v in TERMINAL_POINT.items()}
-
-# Mapowanie miasta portu (PortCalls) -> terminal, gdy nabrzeze nie zawiera kodu terminala.
-# Przy snapshocie statki sa praktycznie wylacznie w Gdansku -> DCT.
-_PORT_CITY_TERMINAL = [
-    ("gdansk", "DCT"),
-    ("nowy port", "DCT"),
-    ("gdynia", "BCT"),
-    ("szczecin", "DBPS"),
-]
 
 
 # --- Wczytywanie danych (raz) -------------------------------------------------
@@ -66,17 +58,6 @@ def _load_codeco() -> pd.DataFrame:
     codeco["hour"] = codeco["t"].dt.hour
     codeco["dow"] = codeco["t"].dt.dayofweek
     return codeco
-
-
-@lru_cache(maxsize=1)
-def _load_portcalls() -> pd.DataFrame:
-    pc = pd.read_excel(DATA_DIR / list(p.name for p in DATA_DIR.glob("PortCalls*.xlsx"))[0], header=1)
-    pc["eta"] = pd.to_datetime(pc["ETA"], errors="coerce")
-    pc["dwt"] = pd.to_numeric(pc["DWT - nośność statku"], errors="coerce")
-    pc["quay"] = pc["Nazwa nabrzeża"].astype(str)
-    pc["port_city"] = pc["Nazwa portu"].astype(str).str.lower()
-    pc["ship"] = pc["Nazwa statku"].astype(str)
-    return pc.dropna(subset=["eta"]).copy()
 
 
 @lru_cache(maxsize=1)
@@ -120,19 +101,6 @@ def _truck_kernel(hours_since_berth: float) -> float:
     return max(0.0, (end - hours_since_berth) / (end - peak))
 
 
-def _ship_terminal(row: pd.Series) -> Optional[str]:
-    """Terminal statku: najpierw z nazwy nabrzeza (kod), potem z miasta portu."""
-    quay = str(row["quay"]).upper()
-    for term in TERMINAL_POINT:
-        if term in quay:
-            return term
-    city = str(row["port_city"]).lower()
-    for needle, term in _PORT_CITY_TERMINAL:
-        if needle in city:
-            return term
-    return None
-
-
 # --- PresjaPortu --------------------------------------------------------------
 def compute_port_pressure(
     terminal: str, horizon_h: float, now: Optional[datetime] = None
@@ -171,24 +139,33 @@ def compute_port_pressure(
         full = settings.pp_codeco_full_ratio  # ratio=full -> skladnik 1.0 (ponad typowa)
         result["codeco"] = max(0.0, min(1.0, (ratio - 1.0) / (full - 1.0))) if full > 1 else 0.0
 
-    # --- skladnik statkow: DWT z ETA w oknie, rozsmarowane krzywa popytu ---
-    target = now + timedelta(hours=horizon_h)
-    pc = _load_portcalls()
-    window = pc[(pc["eta"] >= now) & (pc["eta"] <= target + timedelta(hours=4))].copy()
+    # --- skladnik statkow: zywe ETA z UM Gdynia, rozsmarowane krzywa popytu ---
+    # Statki sa LIVE -> 'teraz' to zegar biezacy (tz-aware), nie snapshot Codeco.
+    ship_now = datetime.now(timezone.utc)
+    target = ship_now + timedelta(hours=horizon_h)
+    window_end = target + timedelta(hours=4)
     weighted_dwt = 0.0
     best: Optional[Tuple[float, str, float]] = None  # (wklad, statek, dwt)
     count = 0
-    for _, row in window.iterrows():
-        if _ship_terminal(row) != terminal:
+    for ship in portcalls_live.get_cached_ships():
+        terminals = ship.get("terminals") or []
+        if terminal not in terminals:
             continue
-        dwt = float(row["dwt"]) if pd.notna(row["dwt"]) else 0.0
-        hours_since_berth = (target - row["eta"].to_pydatetime()).total_seconds() / 3600.0
-        w = _truck_kernel(hours_since_berth)
-        contrib = dwt * w
+        eta = ship.get("eta")
+        if eta is None or not (ship_now <= eta <= window_end):
+            continue
         count += 1
+        dwt = float(ship["dwt"]) if ship.get("dwt") else 0.0
+        if dwt <= 0:
+            continue
+        split = 1.0 / len(terminals)  # statek Gdyni dzielony 0.5 na BCT/GCT
+        factor = portcalls_live.truck_factor(ship.get("ship_type"))
+        hours_since_berth = (target - eta).total_seconds() / 3600.0
+        w = _truck_kernel(hours_since_berth)
+        contrib = dwt * factor * split * w
         weighted_dwt += contrib
         if w > 0 and (best is None or contrib > best[0]):
-            best = (contrib, row["ship"], dwt)
+            best = (contrib, ship["ship"], dwt)
     result["ships_in_window"] = count
     if settings.pp_ship_dwt_full > 0:
         result["ships"] = max(0.0, min(1.0, weighted_dwt / settings.pp_ship_dwt_full))

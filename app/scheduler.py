@@ -11,7 +11,7 @@ from typing import List
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from . import tristar, zditm
+from . import portcalls_live, tristar, zditm
 from .config import settings
 from .ports import PORTS, all_points
 from .storage import storage
@@ -151,11 +151,21 @@ async def poll_zditm() -> None:
     logger.info("ZDiTM: zapisano %d pomiarow", len(records))
 
 
+async def poll_portcalls() -> None:
+    """Odswieza cache zywych zawiniec statkow (UM Gdynia) dla skladnika PresjaPortu CPI."""
+    try:
+        n = await portcalls_live.refresh()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PortCalls live blad: %s", exc)
+        return
+    logger.info("PortCalls live: %d statkow w cache", n)
+
+
 async def poll_once() -> None:
     """Jeden pelny cykl pollingu (flow + incydenty) + odswiezenie raportow LLM."""
     global _last_poll_ts
     await asyncio.gather(_poll_flows(), _poll_incidents())
-    storage.purge_older_than(max_age_seconds=24 * 3600)
+    storage.purge_older_than(max_age_seconds=settings.measurement_retention_seconds)
     _last_poll_ts = time.time()
     try:
         from . import reports
@@ -195,6 +205,16 @@ def start_scheduler() -> AsyncIOScheduler:
         "interval",
         seconds=settings.zditm_poll_interval_seconds,
         id="zditm_poll",
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(),
+    )
+    # Job zywych zawiniec statkow (UM Gdynia) - co 30 min, startuje od razu.
+    _scheduler.add_job(
+        poll_portcalls,
+        "interval",
+        seconds=settings.portcalls_poll_interval_seconds,
+        id="portcalls_poll",
         max_instances=1,
         coalesce=True,
         next_run_time=datetime.now(),

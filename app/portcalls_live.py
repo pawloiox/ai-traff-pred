@@ -38,6 +38,60 @@ SECTION_TERMINALS: Dict[str, List[str]] = {
     # "Nowy Port" -> brak naszych terminali kontenerowych
 }
 
+# Mnoznik popytu na ciezarowki wg typu statku: kontenerowiec generuje najwiecej
+# ruchu ciezarowego na tone, holownik/barka prawie nic. Klucz = podciag w typie.
+_TRUCK_FACTOR = [
+    ("container", 1.0),
+    ("ro-ro", 0.8),
+    ("vehicles carrier", 0.8),
+    ("general cargo", 0.5),
+    ("cargo", 0.5),
+    ("bulk", 0.3),
+    ("tanker", 0.3),
+    ("oil", 0.3),
+    ("tug", 0.0),
+    ("pilot", 0.0),
+    ("dredg", 0.0),
+]
+_TRUCK_FACTOR_DEFAULT = 0.4
+
+# Cache najnowszej listy statkow - aktualizowany asynchronicznie przez scheduler,
+# czytany synchronicznie przez portdata.compute_port_pressure (CPI).
+_cache: Dict[str, Any] = {"ts": None, "ships": []}
+
+
+def truck_factor(ship_type: Optional[str]) -> float:
+    """Wspolczynnik generacji ruchu ciezarowego dla typu statku (0..1)."""
+    if not ship_type:
+        return _TRUCK_FACTOR_DEFAULT
+    s = str(ship_type).lower()
+    for needle, factor in _TRUCK_FACTOR:
+        if needle in s:
+            return factor
+    return _TRUCK_FACTOR_DEFAULT
+
+
+def get_cached_ships() -> List[Dict[str, Any]]:
+    """Najnowsza pobrana lista statkow (sync, dla CPI). Pusta gdy jeszcze nie pobrano."""
+    return _cache["ships"]
+
+
+def cache_timestamp() -> Optional[float]:
+    return _cache["ts"]
+
+
+def set_cached_ships(ships: List[Dict[str, Any]], ts: Optional[float] = None) -> None:
+    import time as _t
+    _cache["ships"] = ships
+    _cache["ts"] = ts if ts is not None else _t.time()
+
+
+async def refresh(client: Optional[httpx.AsyncClient] = None) -> int:
+    """Pobiera zywa liste i aktualizuje cache. Zwraca liczbe statkow."""
+    ships = await fetch(client)
+    set_cached_ships(ships)
+    return len(ships)
+
 
 @lru_cache(maxsize=1)
 def _imo_dictionary() -> Dict[int, Dict[str, Any]]:

@@ -17,8 +17,12 @@ class Settings:
     db_path: str
 
     # Interwaly pollingu nowych zrodel (sekundy). Osobne od joba TomTom.
-    tristar_poll_interval_seconds: int = 300  # TRISTAR co 5 min
-    zditm_poll_interval_seconds: int = 30     # ZDiTM co 30 s
+    tristar_poll_interval_seconds: int = 300        # TRISTAR co 5 min
+    zditm_poll_interval_seconds: int = 30           # ZDiTM co 30 s
+    portcalls_poll_interval_seconds: int = 1800     # zywe zawiniecia (UM Gdynia) co 30 min
+
+    # Retencja pomiarow (sekundy). 28 dni - by baseline CPI (godz+dzien_tyg) mial historie.
+    measurement_retention_seconds: int = 28 * 24 * 3600
 
     # ZDiTM Szczecin: proxy ruchu z predkosci GPS pojazdow komunikacji miejskiej.
     zditm_freeflow_kmph: float = 30.0  # miejski free-flow odniesienia dla congestion_ratio
