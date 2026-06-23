@@ -72,9 +72,12 @@ def bottlenecks(window_minutes: Optional[int] = None, limit: int = 10) -> List[D
                 "lon": r.get("lon"),
                 "_ratios": [],
                 "closures": 0,
+                "last_ts": 0.0,
             },
         )
         bucket["_ratios"].append(ratio)
+        if r.get("ts") and r["ts"] > bucket["last_ts"]:
+            bucket["last_ts"] = r["ts"]
         if r.get("road_closure"):
             bucket["closures"] += 1
 
@@ -198,6 +201,7 @@ def predict_trends() -> List[Dict[str, Any]]:
                 "horizon_minutes": horizon,
                 "rising": bool(rising),
                 "samples": len(series),
+                "ts": last.get("ts"),
             }
         )
 

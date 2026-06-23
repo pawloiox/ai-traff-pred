@@ -29,6 +29,24 @@ function fmtTime(ts) {
   return new Date(ts * 1000).toLocaleTimeString("pl-PL");
 }
 
+function fmtAgo(ts) {
+  if (!ts) return "";
+  const sec = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+  if (sec < 10) return "teraz";
+  if (sec < 60) return `${sec} s temu`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min temu`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} godz temu`;
+  return `${Math.floor(h / 24)} dni temu`;
+}
+
+function cardTime(label, ts) {
+  if (!ts) return "";
+  const ago = fmtAgo(ts);
+  return `<div class="card-time"><span class="card-time-label">${label}</span> ${fmtTime(ts)}${ago ? ` &middot; ${ago}` : ""}</div>`;
+}
+
 async function getJSON(url) {
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`${url}: ${resp.status}`);
@@ -283,6 +301,7 @@ function renderStatus() {
           ${p.road_closure ? "<br/><b>Droga zamknieta</b>" : ""}
         </div>
         ${ratioBar(level, p.congestion_ratio)}
+        ${cardTime("Pomiar:", p.ts)}
       </div>`;
     })
     .join("");
@@ -303,6 +322,7 @@ function renderBottlenecks() {
         <div class="meta">${b.road || ""} &middot; ${b.samples} probek</div>
         <div class="body">Srednia: ${fmtPct(b.avg_ratio)} &middot; Maks: ${fmtPct(b.max_ratio)}</div>
         ${ratioBar(level, b.avg_ratio)}
+        ${cardTime("Ostatnia probka:", b.last_ts)}
       </div>`;
     })
     .join("");
@@ -329,6 +349,7 @@ function renderReports() {
           <b>Rekomendacja:</b> ${r.recommendation}
           ${r.prediction ? `<br/><b>Prognoza (${r.prediction.horizon_minutes} min):</b> ${fmtPct(r.prediction.predicted_ratio)}` : ""}
         </div>
+        ${cardTime("Raport:", r.ts)}
       </div>`;
     })
     .join("");
@@ -348,6 +369,7 @@ function renderIncidents() {
         <h3>${inc.category_label || "Incydent"}</h3>
         <div class="meta">${inc.from_name || ""} ${inc.to_name ? "&rarr; " + inc.to_name : ""}</div>
         <div class="body">${inc.description || ""} ${delay ? "<br/>" + delay : ""}</div>
+        ${cardTime("Aktualne na:", inc.snapshot_ts)}
       </div>`;
     })
     .join("");
@@ -371,6 +393,7 @@ function renderPredictions() {
           Teraz: ${fmtPct(p.current_ratio)} &rarr; za ${p.horizon_minutes} min: <b>${fmtPct(p.predicted_ratio)}</b><br/>
           Trend: ${arrow} (${p.slope_per_10min > 0 ? "+" : ""}${(p.slope_per_10min * 100).toFixed(1)} pkt%/10 min)
         </div>
+        ${cardTime("Baza:", p.ts)}
       </div>`;
     })
     .join("");
