@@ -18,6 +18,11 @@ class Settings:
 
     # Interwaly pollingu nowych zrodel (sekundy). Osobne od joba TomTom.
     tristar_poll_interval_seconds: int = 300  # TRISTAR co 5 min
+    zditm_poll_interval_seconds: int = 30     # ZDiTM co 30 s
+
+    # ZDiTM Szczecin: proxy ruchu z predkosci GPS pojazdow komunikacji miejskiej.
+    zditm_freeflow_kmph: float = 30.0  # miejski free-flow odniesienia dla congestion_ratio
+    zditm_radius_m: float = 1000.0     # promien zbierania pojazdow wokol punktu
 
     # Groq (LLM) - generacja narracji raportow operacyjnych.
     groq_api_key: str = ""
@@ -77,6 +82,7 @@ def load_settings() -> Settings:
         tomtom_api_key=tomtom_key,
         poll_interval_seconds=_get_int("POLL_INTERVAL_SECONDS", 60),
         tristar_poll_interval_seconds=_get_int("TRISTAR_POLL_INTERVAL_SECONDS", 300),
+        zditm_poll_interval_seconds=_get_int("ZDITM_POLL_INTERVAL_SECONDS", 30),
         db_path=os.getenv("DB_PATH", "traffic.db"),
         groq_api_key=groq_key,
         groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
