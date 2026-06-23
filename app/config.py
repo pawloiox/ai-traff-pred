@@ -16,6 +16,9 @@ class Settings:
     poll_interval_seconds: int
     db_path: str
 
+    # Interwaly pollingu nowych zrodel (sekundy). Osobne od joba TomTom.
+    tristar_poll_interval_seconds: int = 300  # TRISTAR co 5 min
+
     # Groq (LLM) - generacja narracji raportow operacyjnych.
     groq_api_key: str = ""
     groq_model: str = "llama-3.1-8b-instant"
@@ -73,6 +76,7 @@ def load_settings() -> Settings:
     return Settings(
         tomtom_api_key=tomtom_key,
         poll_interval_seconds=_get_int("POLL_INTERVAL_SECONDS", 60),
+        tristar_poll_interval_seconds=_get_int("TRISTAR_POLL_INTERVAL_SECONDS", 300),
         db_path=os.getenv("DB_PATH", "traffic.db"),
         groq_api_key=groq_key,
         groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),

@@ -104,6 +104,17 @@ def api_reports(limit: int = Query(8, ge=1, le=50)):
     }
 
 
+@app.get("/api/tristar")
+def api_tristar():
+    """Surowe, najnowsze pomiary warstwy TRISTAR (Gdynia) - intensywnosc poj/h."""
+    from .storage import storage
+
+    return {
+        "last_poll": scheduler.last_tristar_ts(),
+        "measurements": storage.latest_measurements(source="tristar"),
+    }
+
+
 @app.post("/api/refresh")
 async def api_refresh():
     await scheduler.poll_once()

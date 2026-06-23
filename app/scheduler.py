@@ -6,10 +6,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import datetime
 from typing import List
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from . import tristar
 from .config import settings
 from .ports import PORTS, all_points
 from .storage import storage
@@ -20,6 +22,7 @@ logger = logging.getLogger("port_traffic_pulse.scheduler")
 _client: TomTomClient | None = None
 _scheduler: AsyncIOScheduler | None = None
 _last_poll_ts: float | None = None
+_last_tristar_ts: float | None = None
 
 
 def get_client() -> TomTomClient:
@@ -31,6 +34,10 @@ def get_client() -> TomTomClient:
 
 def last_poll_ts() -> float | None:
     return _last_poll_ts
+
+
+def last_tristar_ts() -> float | None:
+    return _last_tristar_ts
 
 
 async def _poll_flows() -> None:
@@ -101,6 +108,26 @@ async def _poll_incidents() -> None:
     await asyncio.gather(*(fetch(port) for port in PORTS))
 
 
+async def poll_tristar() -> None:
+    """Pobiera zywe natezenie TRISTAR (Gdynia) i zapisuje jako warstwe 'tristar'.
+
+    Calkowicie niezalezne od joba TomTom - wlasny interwal, wlasna obsluga bledow.
+    measureTime z API bywa przesuniety (strefa/snapshot), wiec logujemy go tylko
+    informacyjnie; znacznikiem czasu pomiaru pozostaje moment odbioru (ts=now).
+    """
+    global _last_tristar_ts
+    ts = time.time()
+    try:
+        records = await tristar.fetch(ts=ts)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("TRISTAR polling blad: %s", exc)
+        return
+    for rec in records:
+        storage.insert_measurement(rec)
+    _last_tristar_ts = ts
+    logger.info("TRISTAR: zapisano %d pomiarow", len(records))
+
+
 async def poll_once() -> None:
     """Jeden pelny cykl pollingu (flow + incydenty) + odswiezenie raportow LLM."""
     global _last_poll_ts
@@ -128,6 +155,16 @@ def start_scheduler() -> AsyncIOScheduler:
         id="tomtom_poll",
         max_instances=1,
         coalesce=True,
+    )
+    # Job TRISTAR - osobny interwal, startuje od razu by mapa nie czekala 5 min.
+    _scheduler.add_job(
+        poll_tristar,
+        "interval",
+        seconds=settings.tristar_poll_interval_seconds,
+        id="tristar_poll",
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(),
     )
     _scheduler.start()
     logger.info("Scheduler wystartowal (co %s s)", settings.poll_interval_seconds)
