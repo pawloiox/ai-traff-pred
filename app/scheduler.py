@@ -11,7 +11,7 @@ from typing import List
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from . import tristar
+from . import tristar, zditm
 from .config import settings
 from .ports import PORTS, all_points
 from .storage import storage
@@ -23,6 +23,7 @@ _client: TomTomClient | None = None
 _scheduler: AsyncIOScheduler | None = None
 _last_poll_ts: float | None = None
 _last_tristar_ts: float | None = None
+_last_zditm_ts: float | None = None
 
 
 def get_client() -> TomTomClient:
@@ -38,6 +39,10 @@ def last_poll_ts() -> float | None:
 
 def last_tristar_ts() -> float | None:
     return _last_tristar_ts
+
+
+def last_zditm_ts() -> float | None:
+    return _last_zditm_ts
 
 
 async def _poll_flows() -> None:
@@ -128,6 +133,24 @@ async def poll_tristar() -> None:
     logger.info("TRISTAR: zapisano %d pomiarow", len(records))
 
 
+async def poll_zditm() -> None:
+    """Pobiera pozycje pojazdow ZDiTM (Szczecin) i zapisuje proxy ruchu jako 'zditm'.
+
+    Niezalezne od TomTom/TRISTAR - wlasny interwal, wlasna obsluga bledow.
+    """
+    global _last_zditm_ts
+    ts = time.time()
+    try:
+        records = await zditm.fetch(ts=ts)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ZDiTM polling blad: %s", exc)
+        return
+    for rec in records:
+        storage.insert_measurement(rec)
+    _last_zditm_ts = ts
+    logger.info("ZDiTM: zapisano %d pomiarow", len(records))
+
+
 async def poll_once() -> None:
     """Jeden pelny cykl pollingu (flow + incydenty) + odswiezenie raportow LLM."""
     global _last_poll_ts
@@ -162,6 +185,16 @@ def start_scheduler() -> AsyncIOScheduler:
         "interval",
         seconds=settings.tristar_poll_interval_seconds,
         id="tristar_poll",
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(),
+    )
+    # Job ZDiTM - osobny interwal (co 30 s), startuje od razu.
+    _scheduler.add_job(
+        poll_zditm,
+        "interval",
+        seconds=settings.zditm_poll_interval_seconds,
+        id="zditm_poll",
         max_instances=1,
         coalesce=True,
         next_run_time=datetime.now(),

@@ -115,6 +115,17 @@ def api_tristar():
     }
 
 
+@app.get("/api/zditm")
+def api_zditm():
+    """Surowe, najnowsze pomiary warstwy ZDiTM (Szczecin) - proxy z predkosci GPS."""
+    from .storage import storage
+
+    return {
+        "last_poll": scheduler.last_zditm_ts(),
+        "measurements": storage.latest_measurements(source="zditm"),
+    }
+
+
 @app.post("/api/refresh")
 async def api_refresh():
     await scheduler.poll_once()
