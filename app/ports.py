@@ -93,8 +93,8 @@ PORTS: List[Port] = [
             MonitoredPoint(
                 id="gdy_polska",
                 name="ul. Polska (brama portu)",
-                lat=54.5340,
-                lon=18.5520,
+                lat=54.5325,
+                lon=18.5480,
                 road="ul. Polska",
             ),
         ],
