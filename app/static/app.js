@@ -252,13 +252,19 @@ function initTabs() {
 const cache = {};
 
 async function refreshAll() {
-  const [status, bottlenecks, reports, incidents, predictions] = await Promise.all([
+  const results = await Promise.allSettled([
     getJSON("/api/status"),
     getJSON("/api/bottlenecks?window=60&limit=15"),
     getJSON("/api/reports?limit=12"),
     getJSON("/api/incidents"),
     getJSON("/api/predictions"),
   ]);
+  const val = (i, fallback) => results[i].status === "fulfilled" ? results[i].value : fallback;
+  const status = val(0, { last_poll: null, points: [] });
+  const bottlenecks = val(1, { bottlenecks: [] });
+  const reports = val(2, { reports: [] });
+  const incidents = val(3, { incidents: [] });
+  const predictions = val(4, { predictions: [] });
   cache.status = status;
   cache.bottlenecks = bottlenecks.bottlenecks;
   cache.reports = reports.reports;

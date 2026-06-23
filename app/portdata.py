@@ -48,9 +48,12 @@ POINT_TERMINAL: Dict[str, str] = {v: k for k, v in TERMINAL_POINT.items()}
 @lru_cache(maxsize=1)
 def _load_codeco() -> pd.DataFrame:
     frames = []
-    for f in sorted(DATA_DIR.glob("Codeco*.xlsx")):
-        df = pd.read_excel(f, header=1)
-        frames.append(df)
+    if DATA_DIR.is_dir():
+        for f in sorted(DATA_DIR.glob("Codeco*.xlsx")):
+            df = pd.read_excel(f, header=1)
+            frames.append(df)
+    if not frames:
+        return pd.DataFrame(columns=["terminal", "t", "hour", "dow"])
     codeco = pd.concat(frames, ignore_index=True)
     codeco["terminal"] = codeco["Terminal rozładunkowy"].fillna(codeco["Terminal załadunkowy"])
     codeco["t"] = pd.to_datetime(codeco["Czas załadunku/wyładunku"], errors="coerce")
@@ -63,7 +66,10 @@ def _load_codeco() -> pd.DataFrame:
 @lru_cache(maxsize=1)
 def reference_now() -> datetime:
     """Kotwica 'teraz' = najnowszy znacznik w Codeco (snapshot danych)."""
-    return _load_codeco()["t"].max().to_pydatetime()
+    codeco = _load_codeco()
+    if codeco.empty or codeco["t"].isna().all():
+        return datetime.now(timezone.utc)
+    return codeco["t"].max().to_pydatetime()
 
 
 @lru_cache(maxsize=1)
@@ -74,6 +80,8 @@ def _baseline_table() -> Dict[Tuple[str, int, int], float]:
     przypadajacych na ten sam dzien tygodnia - odporne na pojedyncze skoki.
     """
     codeco = _load_codeco()
+    if codeco.empty:
+        return {}
     cutoff = reference_now() - timedelta(weeks=settings.pp_baseline_weeks)
     recent = codeco[codeco["t"] >= cutoff]
     # liczba zdarzen per (terminal, konkretny dzien, godzina)
