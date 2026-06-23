@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Port Traffic Pulse</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand">
+        <span class="pulse-dot"></span>
+        <h1>Port Traffic Pulse</h1>
+        <span class="subtitle">Zywy uklad nerwowy portu &middot; TomTom Traffic</span>
+      </div>
+      <div class="controls">
+        <label for="portSelect">Port:</label>
+        <select id="portSelect"></select>
+        <label class="toggle"><input type="checkbox" id="flowToggle" checked /> Flow</label>
+        <label class="toggle"><input type="checkbox" id="incidentsToggle" checked /> Incydenty</label>
+        <button id="refreshBtn">Odswiez teraz</button>
+        <span id="lastPoll" class="last-poll">--</span>
+      </div>
+    </header>
+
+    <div id="layout">
+      <div id="map"></div>
+      <aside id="sidebar">
+        <nav class="tabs">
+          <button class="tab active" data-tab="status">Stan</button>
+          <button class="tab" data-tab="bottlenecks">Waskie gardla</button>
+          <button class="tab" data-tab="reports">Raporty</button>
+          <button class="tab" data-tab="incidents">Incydenty</button>
+          <button class="tab" data-tab="predictions">Predykcja</button>
+        </nav>
+        <div class="tab-panels">
+          <section class="panel active" id="panel-status"></section>
+          <section class="panel" id="panel-bottlenecks"></section>
+          <section class="panel" id="panel-reports"></section>
+          <section class="panel" id="panel-incidents"></section>
+          <section class="panel" id="panel-predictions"></section>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
