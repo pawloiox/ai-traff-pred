@@ -141,9 +141,60 @@ async def api_refresh():
     return {"status": "ok", "last_poll": scheduler.last_poll_ts()}
 
 
+@app.get("/api/risk-scores")
+def api_risk_scores():
+    """Scoring ryzyka opoznien per punkt (delay_risk_score)."""
+    return {"risk_scores": analysis.delay_risk_all()}
+
+
+@app.get("/api/weather")
+def api_weather():
+    """Aktualna pogoda per port z Open-Meteo."""
+    from .storage import storage
+
+    return {
+        "last_poll": scheduler.last_weather_ts(),
+        "weather": storage.all_latest_weather(),
+    }
+
+
+@app.get("/api/analytics/congestion-history")
+def api_congestion_history(
+    point_id: Optional[str] = None,
+    days: int = Query(7, ge=1, le=28),
+):
+    """Godzinowe agregaty kongestii z ostatnich N dni."""
+    from .storage import storage
+
+    return {"days": days, "history": storage.congestion_history(point_id, days)}
+
+
+@app.get("/api/analytics/daily-pattern")
+def api_daily_pattern(
+    point_id: str = Query(...),
+    weeks: int = Query(4, ge=1, le=12),
+):
+    """Wzorzec tygodniowy: srednia kongestia per godzina i dzien tygodnia."""
+    from .storage import storage
+
+    return {"point_id": point_id, "weeks": weeks, "pattern": storage.daily_pattern(point_id, weeks)}
+
+
+@app.get("/api/analytics/port-summary")
+def api_port_summary(
+    port_id: Optional[str] = None,
+    hours: int = Query(24, ge=1, le=168),
+):
+    """Podsumowanie kongestii per port."""
+    from .storage import storage
+
+    return {"hours": hours, "summary": storage.port_summary(port_id, hours)}
+
+
 @app.get("/")
 def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+

@@ -51,6 +51,19 @@ CREATE TABLE IF NOT EXISTS incidents (
     lon REAL
 );
 CREATE INDEX IF NOT EXISTS idx_inc_port_ts ON incidents(port_id, snapshot_ts);
+
+CREATE TABLE IF NOT EXISTS weather_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts REAL NOT NULL,
+    port_id TEXT NOT NULL,
+    temperature REAL,
+    rain REAL,
+    wind_speed REAL,
+    visibility REAL,
+    weather_code INTEGER,
+    weather_penalty REAL
+);
+CREATE INDEX IF NOT EXISTS idx_weather_port_ts ON weather_cache(port_id, ts);
 """
 
 
@@ -193,7 +206,168 @@ class Storage:
         cutoff = time.time() - max_age_seconds
         with self._lock:
             self._conn.execute("DELETE FROM measurements WHERE ts < ?", (cutoff,))
+            self._conn.execute("DELETE FROM weather_cache WHERE ts < ?", (cutoff,))
             self._conn.commit()
+
+    # --- pogoda (weather_cache) -----------------------------------------------
+    def insert_weather(self, row: Dict[str, Any]) -> None:
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO weather_cache
+                (ts, port_id, temperature, rain, wind_speed, visibility,
+                 weather_code, weather_penalty)
+                VALUES (:ts, :port_id, :temperature, :rain, :wind_speed,
+                        :visibility, :weather_code, :weather_penalty)
+                """,
+                row,
+            )
+            self._conn.commit()
+
+    def latest_weather(self, port_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Najnowszy wpis pogodowy dla portu (lub najnowszy globalnie)."""
+        with self._lock:
+            if port_id:
+                cur = self._conn.execute(
+                    "SELECT * FROM weather_cache WHERE port_id = ? ORDER BY ts DESC LIMIT 1",
+                    (port_id,),
+                )
+            else:
+                cur = self._conn.execute(
+                    "SELECT * FROM weather_cache ORDER BY ts DESC LIMIT 1"
+                )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    def all_latest_weather(self) -> List[Dict[str, Any]]:
+        """Najnowsza pogoda per port."""
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                SELECT w.* FROM weather_cache w
+                JOIN (
+                    SELECT port_id, MAX(ts) AS max_ts
+                    FROM weather_cache GROUP BY port_id
+                ) latest
+                ON w.port_id = latest.port_id AND w.ts = latest.max_ts
+                """
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+    # --- agregaty analityczne -------------------------------------------------
+    def congestion_history(
+        self, point_id: Optional[str] = None, days: int = 7
+    ) -> List[Dict[str, Any]]:
+        """Godzinowe agregaty kongestii (avg, max, count) z ostatnich N dni.
+
+        Grupowanie po godzinie UTC (zaokraglenie ts do godziny).
+        """
+        since = time.time() - days * 86400
+        if point_id:
+            query = """
+                SELECT
+                    point_id, point_name, road, port_id,
+                    CAST((ts / 3600) AS INTEGER) * 3600 AS hour_ts,
+                    AVG(congestion_ratio) AS avg_ratio,
+                    MAX(congestion_ratio) AS max_ratio,
+                    COUNT(*) AS samples
+                FROM measurements
+                WHERE ts >= ? AND point_id = ? AND source = 'tomtom'
+                      AND congestion_ratio IS NOT NULL
+                GROUP BY point_id, hour_ts
+                ORDER BY hour_ts ASC
+            """
+            params: tuple = (since, point_id)
+        else:
+            query = """
+                SELECT
+                    point_id, point_name, road, port_id,
+                    CAST((ts / 3600) AS INTEGER) * 3600 AS hour_ts,
+                    AVG(congestion_ratio) AS avg_ratio,
+                    MAX(congestion_ratio) AS max_ratio,
+                    COUNT(*) AS samples
+                FROM measurements
+                WHERE ts >= ? AND source = 'tomtom'
+                      AND congestion_ratio IS NOT NULL
+                GROUP BY point_id, hour_ts
+                ORDER BY hour_ts ASC
+            """
+            params = (since,)
+        with self._lock:
+            cur = self._conn.execute(query, params)
+            return [dict(r) for r in cur.fetchall()]
+
+    def daily_pattern(
+        self, point_id: str, weeks: int = 4
+    ) -> List[Dict[str, Any]]:
+        """Wzorzec tygodniowy: mediana ratio per godzina i dzien tygodnia.
+
+        SQLite nie ma wbudowanej MEDIAN - uzywamy AVG jako przybliżenia,
+        a dokladna mediane mozna policzyc po stronie Pythona jesli potrzeba.
+        Dzien tygodnia: 0=niedziela w SQLite strftime, mapujemy na 0=pn.
+        """
+        since = time.time() - weeks * 7 * 86400
+        query = """
+            SELECT
+                CAST(strftime('%w', ts, 'unixepoch', 'localtime') AS INTEGER) AS dow_sqlite,
+                CAST(strftime('%H', ts, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+                AVG(congestion_ratio) AS avg_ratio,
+                MAX(congestion_ratio) AS max_ratio,
+                COUNT(*) AS samples
+            FROM measurements
+            WHERE ts >= ? AND point_id = ? AND source = 'tomtom'
+                  AND congestion_ratio IS NOT NULL
+            GROUP BY dow_sqlite, hour
+            ORDER BY dow_sqlite, hour
+        """
+        with self._lock:
+            cur = self._conn.execute(query, (since, point_id))
+            rows = [dict(r) for r in cur.fetchall()]
+
+        # Mapowanie SQLite dow (0=nd) na Python (0=pn)
+        DOW_MAP = {1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6}
+        for r in rows:
+            r["day_of_week"] = DOW_MAP.get(r.pop("dow_sqlite", 0), 0)
+        return rows
+
+    def port_summary(
+        self, port_id: Optional[str] = None, hours: int = 24
+    ) -> List[Dict[str, Any]]:
+        """Podsumowanie kongestii per port: avg, max, liczba alertow."""
+        since = time.time() - hours * 3600
+        if port_id:
+            query = """
+                SELECT
+                    port_id,
+                    AVG(congestion_ratio) AS avg_ratio,
+                    MAX(congestion_ratio) AS max_ratio,
+                    COUNT(*) AS total_samples,
+                    SUM(CASE WHEN congestion_ratio >= 0.55 THEN 1 ELSE 0 END) AS critical_count,
+                    SUM(CASE WHEN congestion_ratio >= 0.30 AND congestion_ratio < 0.55 THEN 1 ELSE 0 END) AS warning_count
+                FROM measurements
+                WHERE ts >= ? AND port_id = ? AND source = 'tomtom'
+                      AND congestion_ratio IS NOT NULL
+                GROUP BY port_id
+            """
+            params_ps: tuple = (since, port_id)
+        else:
+            query = """
+                SELECT
+                    port_id,
+                    AVG(congestion_ratio) AS avg_ratio,
+                    MAX(congestion_ratio) AS max_ratio,
+                    COUNT(*) AS total_samples,
+                    SUM(CASE WHEN congestion_ratio >= 0.55 THEN 1 ELSE 0 END) AS critical_count,
+                    SUM(CASE WHEN congestion_ratio >= 0.30 AND congestion_ratio < 0.55 THEN 1 ELSE 0 END) AS warning_count
+                FROM measurements
+                WHERE ts >= ? AND source = 'tomtom'
+                      AND congestion_ratio IS NOT NULL
+                GROUP BY port_id
+            """
+            params_ps = (since,)
+        with self._lock:
+            cur = self._conn.execute(query, params_ps)
+            return [dict(r) for r in cur.fetchall()]
 
 
 storage = Storage()

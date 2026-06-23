@@ -20,6 +20,7 @@ class Settings:
     tristar_poll_interval_seconds: int = 300        # TRISTAR co 5 min
     zditm_poll_interval_seconds: int = 30           # ZDiTM co 30 s
     portcalls_poll_interval_seconds: int = 1800     # zywe zawiniecia (UM Gdynia) co 30 min
+    weather_poll_interval_seconds: int = 1800       # pogoda Open-Meteo co 30 min
 
     # Retencja pomiarow (sekundy). 28 dni - by baseline CPI (godz+dzien_tyg) mial historie.
     measurement_retention_seconds: int = 28 * 24 * 3600
