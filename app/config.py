@@ -24,6 +24,14 @@ class Settings:
     # Retencja pomiarow (sekundy). 28 dni - by baseline CPI (godz+dzien_tyg) mial historie.
     measurement_retention_seconds: int = 28 * 24 * 3600
 
+    # CPI - wagi skladnikow (suma 1.0) i parametry.
+    cpi_w_baseline: float = 0.4
+    cpi_w_trend: float = 0.2
+    cpi_w_port_pressure: float = 0.3
+    cpi_w_incidents: float = 0.1
+    cpi_trend_tau_h: float = 3.0           # stala zaniku wplywu trendu z horyzontem
+    cpi_trend_window_minutes: int = 60     # okno historii do nachylenia trendu
+
     # ZDiTM Szczecin: proxy ruchu z predkosci GPS pojazdow komunikacji miejskiej.
     zditm_freeflow_kmph: float = 30.0  # miejski free-flow odniesienia dla congestion_ratio
     zditm_radius_m: float = 1000.0     # promien zbierania pojazdow wokol punktu

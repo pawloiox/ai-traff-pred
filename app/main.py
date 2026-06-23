@@ -115,6 +115,14 @@ def api_tristar():
     }
 
 
+@app.get("/api/cpi")
+def api_cpi(point_id: str = Query(...), horizon: float = Query(1.0, ge=1, le=6)):
+    """Indeks Presji Zatorowej z rozkladem na 4 skladniki dla punktu i horyzontu (h)."""
+    from . import cpi
+
+    return cpi.compute_cpi(point_id, horizon)
+
+
 @app.get("/api/zditm")
 def api_zditm():
     """Surowe, najnowsze pomiary warstwy ZDiTM (Szczecin) - proxy z predkosci GPS."""
