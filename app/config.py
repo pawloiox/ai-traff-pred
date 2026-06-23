@@ -18,7 +18,7 @@ class Settings:
 
     # Groq (LLM) - generacja narracji raportow operacyjnych.
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "llama-3.1-8b-instant"
     groq_enabled: bool = True
     groq_timeout: float = 20.0
 
@@ -75,7 +75,7 @@ def load_settings() -> Settings:
         poll_interval_seconds=_get_int("POLL_INTERVAL_SECONDS", 60),
         db_path=os.getenv("DB_PATH", "traffic.db"),
         groq_api_key=groq_key,
-        groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
         groq_enabled=groq_enabled,
     )
 

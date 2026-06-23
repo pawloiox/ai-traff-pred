@@ -7,7 +7,6 @@ Groq stosowany jest fallback regulowy. Wyniki sa buforowane w cyklu pollingu.
 
 from __future__ import annotations
 
-import asyncio
 import math
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -21,7 +20,27 @@ from .storage import storage
 # Bufor raportow odswiezany w cyklu pollingu.
 _cache: Dict[str, Any] = {"ts": None, "reports": []}
 
+# Cache narracji LLM wg sygnatury sytuacji - Groq wolany tylko przy zmianie.
+# Klucz: sygnatura sytuacji -> {"narrative": {...}, "source": "groq"}.
+_narrative_cache: Dict[str, Dict[str, Any]] = {}
+
 _SEVERITY = {"critical": 3, "warning": 2, "ok": 1, "unknown": 0}
+
+
+def _situation_signature(s: Dict[str, Any]) -> str:
+    """Stabilny podpis sytuacji - zmienia sie tylko przy istotnej zmianie stanu."""
+    inc = s.get("linked_incident") or {}
+    parts = [
+        str(s.get("point_id")),
+        str(s.get("level")),
+        "r1" if s.get("rising") else "r0",
+        "a1" if s.get("is_anomaly") else "a0",
+        "c1" if s.get("road_closure") else "c0",
+        f"{round((s.get('avg_ratio') or 0), 2)}",
+        f"{round((s.get('max_ratio') or 0), 2)}",
+        str(inc.get("incident_id") or "-"),
+    ]
+    return "|".join(parts)
 
 
 def _haversine_m(a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -188,24 +207,58 @@ def _assemble(situation: Dict[str, Any], narrative: Dict[str, str], source: str,
 
 
 async def refresh_reports(limit: int = 8) -> List[Dict[str, Any]]:
-    """Buduje sytuacje, generuje narracje przez Groq (z fallbackiem) i buforuje."""
+    """Buduje sytuacje, generuje narracje przez Groq (z fallbackiem) i buforuje.
+
+    Optymalizacja limitu Groq:
+    - narracje stabilnych sytuacji sa brane z cache (bez zapytania),
+    - tylko zmienione/nowe sytuacje ida do Groq w JEDNYM zbiorczym zapytaniu/cykl.
+    """
     ts = time.time()
     situations = _build_situations(limit=20)[:limit]
 
-    reports: List[Dict[str, Any]] = []
-    if situations and settings.groq_enabled and settings.groq_api_key:
-        async with httpx.AsyncClient(timeout=settings.groq_timeout) as client:
-            results = await asyncio.gather(
-                *(groq_client.generate_report(s, client=client) for s in situations)
-            )
-    else:
-        results = [None] * len(situations)
+    signatures = [_situation_signature(s) for s in situations]
+    narratives: List[Optional[Dict[str, str]]] = [None] * len(situations)
+    sources: List[str] = ["rule"] * len(situations)
 
-    for situation, narrative in zip(situations, results):
+    # 1) Reuzycie narracji z cache dla niezmienionych sytuacji.
+    to_generate: List[int] = []
+    for i, sig in enumerate(signatures):
+        cached = _narrative_cache.get(sig)
+        if cached:
+            narratives[i] = cached["narrative"]
+            sources[i] = cached["source"]
+        else:
+            to_generate.append(i)
+
+    # 2) Jedno zbiorcze zapytanie do Groq dla zmienionych sytuacji.
+    if to_generate and settings.groq_enabled and settings.groq_api_key:
+        subset = [situations[i] for i in to_generate]
+        async with httpx.AsyncClient(timeout=settings.groq_timeout) as client:
+            batch = await groq_client.generate_reports_batch(subset, client=client)
+        for local_idx, global_idx in enumerate(to_generate):
+            narrative = batch[local_idx]
+            if narrative and (narrative.get("summary") or narrative.get("headline")):
+                narratives[global_idx] = narrative
+                sources[global_idx] = "groq"
+                _narrative_cache[signatures[global_idx]] = {
+                    "narrative": narrative,
+                    "source": "groq",
+                }
+
+    # 3) Fallback regulowy dla pozostalych (brak Groq / blad / over-limit).
+    reports: List[Dict[str, Any]] = []
+    for i, situation in enumerate(situations):
+        narrative = narratives[i]
         if narrative and (narrative.get("summary") or narrative.get("headline")):
-            reports.append(_assemble(situation, narrative, "groq", ts))
+            reports.append(_assemble(situation, narrative, sources[i], ts))
         else:
             reports.append(_assemble(situation, _rule_based_narrative(situation), "rule", ts))
+
+    # 4) Utrzymanie rozmiaru cache - tylko sygnatury z biezacego cyklu.
+    active = set(signatures)
+    for key in list(_narrative_cache.keys()):
+        if key not in active:
+            del _narrative_cache[key]
 
     _cache["ts"] = ts
     _cache["reports"] = reports

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -19,17 +19,33 @@ logger = logging.getLogger("port_traffic_pulse.groq")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-SYSTEM_PROMPT = (
-    "Jestes asystentem dyzurnego w centrum dowodzenia portu morskiego. "
-    "Na podstawie ustrukturyzowanych danych o ruchu na drodze dojazdowej do terminala "
-    "tworzysz krotki raport operacyjny po polsku. Pisz konkretnie, rzeczowo i zwiezle, "
-    "jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n\n"
-    "Zwroc WYLACZNIE obiekt JSON o polach:\n"
+_FIELDS_DESC = (
     '- "headline": krotki naglowek (max ~8 slow),\n'
     '- "cause": prawdopodobna przyczyna utrudnienia (1 zdanie),\n'
     '- "recommendation": konkretna rekomendacja dzialania dla dyspozytora (1-2 zdania),\n'
     '- "summary": pelne podsumowanie laczace stan, przyczyne, rekomendacje i trend '
     "(2-3 zdania).\n"
+)
+
+SYSTEM_PROMPT = (
+    "Jestes asystentem dyzurnego w centrum dowodzenia portu morskiego. "
+    "Na podstawie ustrukturyzowanych danych o ruchu na drodze dojazdowej do terminala "
+    "tworzysz krotki raport operacyjny po polsku. Pisz konkretnie, rzeczowo i zwiezle, "
+    "jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n\n"
+    "Zwroc WYLACZNIE obiekt JSON o polach:\n" + _FIELDS_DESC +
+    "Nie dodawaj zadnego tekstu poza obiektem JSON."
+)
+
+SYSTEM_PROMPT_BATCH = (
+    "Jestes asystentem dyzurnego w centrum dowodzenia portu morskiego. "
+    "Na podstawie listy ustrukturyzowanych sytuacji ruchu na drogach dojazdowych do "
+    "terminali tworzysz krotkie raporty operacyjne po polsku. Pisz konkretnie, rzeczowo "
+    "i zwiezle, jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n\n"
+    "Otrzymasz liste sytuacji, kazda oznaczona polem id. Zwroc WYLACZNIE obiekt JSON "
+    'w formacie: {"reports": [{"id": <to samo id>, "headline": ..., "cause": ..., '
+    '"recommendation": ..., "summary": ...}, ...]}.\n'
+    "Dla KAZDEJ sytuacji wygeneruj dokladnie jeden raport o tym samym id. Pola raportu:\n"
+    + _FIELDS_DESC +
     "Nie dodawaj zadnego tekstu poza obiektem JSON."
 )
 
@@ -80,7 +96,7 @@ async def generate_report(
     payload = {
         "model": settings.groq_model,
         "temperature": 0.3,
-        "max_tokens": 500,
+        "max_tokens": 300,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -101,15 +117,84 @@ async def generate_report(
         data = resp.json()
         content = data["choices"][0]["message"]["content"]
         parsed = json.loads(content)
-        return {
-            "headline": str(parsed.get("headline", "")).strip(),
-            "cause": str(parsed.get("cause", "")).strip(),
-            "recommendation": str(parsed.get("recommendation", "")).strip(),
-            "summary": str(parsed.get("summary", "")).strip(),
-        }
+        return _normalize_narrative(parsed)
     except (httpx.HTTPError, json.JSONDecodeError, KeyError, ValueError) as exc:
         logger.warning("Groq generacja nieudana dla %s: %s", situation.get("point_id"), exc)
         return None
+    finally:
+        if owns_client and client is not None:
+            await client.aclose()
+
+
+def _normalize_narrative(parsed: Dict[str, Any]) -> Dict[str, str]:
+    return {
+        "headline": str(parsed.get("headline", "")).strip(),
+        "cause": str(parsed.get("cause", "")).strip(),
+        "recommendation": str(parsed.get("recommendation", "")).strip(),
+        "summary": str(parsed.get("summary", "")).strip(),
+    }
+
+
+async def generate_reports_batch(
+    situations: List[Dict[str, Any]], client: Optional[httpx.AsyncClient] = None
+) -> List[Optional[Dict[str, str]]]:
+    """Generuje narracje dla wielu sytuacji w JEDNYM zapytaniu Groq.
+
+    Zwraca liste narracji wyrownana do `situations` (None tam, gdzie model nie
+    zwrocil raportu). Oszczedza limit (1 request/cykl zamiast N).
+    """
+    result: List[Optional[Dict[str, str]]] = [None] * len(situations)
+    if not situations or not settings.groq_enabled or not settings.groq_api_key:
+        return result
+
+    blocks = []
+    for idx, s in enumerate(situations):
+        blocks.append(f"### Sytuacja id={idx}\n{_situation_to_prompt(s)}")
+    user_content = "\n\n".join(blocks)
+
+    # Budzet wyjscia skalowany liczba sytuacji (ok. 180 tokenow na raport).
+    max_tokens = min(2000, 180 * len(situations) + 120)
+
+    payload = {
+        "model": settings.groq_model,
+        "temperature": 0.3,
+        "max_tokens": max_tokens,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT_BATCH},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.groq_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    owns_client = client is None
+    if owns_client:
+        client = httpx.AsyncClient(timeout=settings.groq_timeout)
+    try:
+        resp = await client.post(GROQ_URL, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+        reports = parsed.get("reports") if isinstance(parsed, dict) else None
+        if not isinstance(reports, list):
+            return result
+        for item in reports:
+            if not isinstance(item, dict):
+                continue
+            try:
+                idx = int(item.get("id"))
+            except (TypeError, ValueError):
+                continue
+            if 0 <= idx < len(result):
+                result[idx] = _normalize_narrative(item)
+        return result
+    except (httpx.HTTPError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        logger.warning("Groq generacja zbiorcza nieudana: %s", exc)
+        return result
     finally:
         if owns_client and client is not None:
             await client.aclose()

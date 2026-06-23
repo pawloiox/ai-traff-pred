@@ -53,7 +53,7 @@ TOMTOM_API_KEY=twoj_klucz
 POLL_INTERVAL_SECONDS=60
 DB_PATH=traffic.db
 GROQ_API_KEY=twoj_klucz_groq
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=llama-3.1-8b-instant
 GROQ_ENABLED=true
 ```
 
@@ -65,6 +65,16 @@ co oszczedza limity zapytan. Detekcja sytuacji (waskie gardla, anomalie, predykc
 pobliskie incydenty) pozostaje regulowa; Groq tworzy tylko tresc raportu (`headline`,
 `cause`, `recommendation`, `summary`). Pole `source` w raporcie wskazuje `groq` lub `rule`
 (fallback). Ustaw `GROQ_ENABLED=false`, aby korzystac wylacznie z raportow regulowych.
+
+Oszczedzanie darmowego limitu Groq:
+
+- domyslny model to `llama-3.1-8b-instant` (14.4k zapytan/dobe, 500k tokenow/dobe) -
+  zadanie jest proste (krotki JSON oparty na policzonych danych), a modele 70B/120B
+  maja tylko 1k zapytan/dobe i przy generacji co minute szybko zwracaja `429`;
+- wszystkie zmienione sytuacje ida w JEDNYM zbiorczym zapytaniu na cykl (zamiast po
+  jednym na punkt), co tnie liczbe zapytan nawet kilkukrotnie;
+- narracje stabilnych sytuacji sa reuzywane z cache (Groq wolany tylko gdy stan punktu
+  realnie sie zmieni), wiec w spokojnym ruchu liczba zapytan spada niemal do zera.
 
 ## Uruchomienie
 
