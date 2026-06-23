@@ -128,7 +128,6 @@ def start_scheduler() -> AsyncIOScheduler:
         id="tomtom_poll",
         max_instances=1,
         coalesce=True,
-        next_run_time=None,
     )
     _scheduler.start()
     logger.info("Scheduler wystartowal (co %s s)", settings.poll_interval_seconds)
