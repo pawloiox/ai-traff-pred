@@ -7,6 +7,9 @@ env/
 .env
 *.db
 *.sqlite3
+# Dane portowe (Codeco/PortCalls/DspShips) - duze pliki, trzymane lokalnie
+data/
+*.xlsx
 .DS_Store
 .idea/
 .vscode/

@@ -24,6 +24,13 @@ class Settings:
     zditm_freeflow_kmph: float = 30.0  # miejski free-flow odniesienia dla congestion_ratio
     zditm_radius_m: float = 1000.0     # promien zbierania pojazdow wokol punktu
 
+    # PresjaPortu (Codeco/PortCalls) - skladnik port_pressure CPI.
+    pp_baseline_weeks: int = 3            # okno historii do mediany (godz+dzien_tyg)
+    pp_codeco_full_ratio: float = 2.0     # tempo = 2x typowe -> skladnik Codeco = 1.0
+    pp_ship_dwt_full: float = 120000.0    # DWT dajace pelny wklad skladnika statkow
+    pp_truck_spread_hours: float = 8.0    # po cumowaniu ciezarowki schodza przez ~8h
+    pp_truck_peak_hours: float = 3.0      # szczyt fali ciezarowek ~3h po cumowaniu
+
     # Groq (LLM) - generacja narracji raportow operacyjnych.
     groq_api_key: str = ""
     groq_model: str = "llama-3.1-8b-instant"
