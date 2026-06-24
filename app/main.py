@@ -172,6 +172,14 @@ def api_subscribe(sub: PushSubscription):
 
 @app.get("/")
 def index():
+    # Strona tytulowa (wybor roli). Przyciski prowadza do dashboardu.
+    return FileResponse(STATIC_DIR / "landing.html")
+
+
+@app.get("/dyspozytor")
+@app.get("/dashboard")
+def dashboard():
+    # Dotychczasowy dashboard (widok firmy/dyspozytora).
     return FileResponse(STATIC_DIR / "index.html")
 
 

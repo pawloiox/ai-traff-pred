@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PortPulse — Żywy układ nerwowy logistyki portowej</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+    /* domyślny kolor pnia/węzła diagramu (slate-300) */
+    #pipeline { --trunk: #CBD5E1; }
+  </style>
+</head>
+<body class="min-h-screen w-full bg-white text-slate-900 antialiased">
+
+  <!-- =================== Baner fotograficzny =================== -->
+  <div class="relative h-[460px] w-full overflow-hidden sm:h-[520px]">
+    <img
+      src="/static/hero-port.jpg"
+      onerror="if(this.src.indexOf('unsplash')===-1){this.src='https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=1600';}"
+      alt="Terminal kontenerowy w porcie"
+      class="absolute inset-0 h-full w-full object-cover"
+    />
+    <!-- maska kontrastu + dół przechodzący w biel -->
+    <div class="absolute inset-0 bg-gradient-to-b from-slate-950/50 to-slate-900/30"></div>
+    <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white"></div>
+
+    <!-- Header na zdjęciu -->
+    <header class="absolute inset-x-0 top-0 z-10">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+        <div class="flex items-center gap-2.5">
+          <span class="h-2.5 w-2.5 rounded-full bg-white shadow"></span>
+          <span class="text-lg font-extrabold tracking-tight text-white">Port<span class="text-white/70">Pulse</span></span>
+        </div>
+        <div class="flex items-center gap-2.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-400"></span>
+          </span>
+          Status: Gdańsk | Gdynia | Szczecin — Online
+          <span id="clock" class="hidden font-mono text-white/60 sm:inline">--:--</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tekst hero -->
+    <div class="relative z-[5] mx-auto flex h-full max-w-3xl flex-col items-center justify-center px-6 text-center">
+      <h1 class="text-balance text-4xl font-extrabold leading-[1.08] tracking-tight text-white drop-shadow-sm sm:text-6xl">
+        Żywy układ nerwowy logistyki portowej
+      </h1>
+      <p class="mt-5 max-w-2xl text-base leading-relaxed text-slate-100/90 sm:text-lg">
+        Zintegrowana wizualizacja i predykcja kongestii drogowej w czasie rzeczywistym.
+      </p>
+    </div>
+  </div>
+
+  <!-- =================== Sekcja jasna =================== -->
+  <div class="bg-white">
+    <div class="mx-auto max-w-6xl px-6">
+
+      <!-- Diagram trzech dróg wyłaniający się z banera -->
+      <div class="relative z-10 -mt-10">
+        <svg id="pipeline" viewBox="0 0 1200 160" class="h-24 w-full sm:h-32" fill="none" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="trunkFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--trunk)" stop-opacity="0"></stop>
+              <stop offset="0.55" stop-color="var(--trunk)" stop-opacity="0.5"></stop>
+              <stop offset="1" stop-color="var(--trunk)" stop-opacity="1"></stop>
+            </linearGradient>
+          </defs>
+          <line x1="600" y1="0" x2="600" y2="40" stroke="url(#trunkFade)" stroke-width="3" stroke-linecap="round"></line>
+          <path id="branch-dispatcher" d="M600 40 C600 110 200 90 200 150" stroke="#1593C9" stroke-width="3" stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
+          <path id="branch-driver"     d="M600 40 L600 150"                 stroke="#C0432E" stroke-width="3" stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
+          <path id="branch-client"     d="M600 40 C600 110 1000 90 1000 150" stroke="#DDA017" stroke-width="3" stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
+          <circle id="pipeline-node" cx="600" cy="40" r="6" fill="#ffffff" stroke="#94A3B8" stroke-width="3" class="transition-colors duration-300"></circle>
+        </svg>
+      </div>
+
+      <!-- Karty bento -->
+      <section class="grid grid-cols-1 gap-6 pb-16 sm:grid-cols-3">
+
+        <!-- Karta: Firma / Dyspozytor -->
+        <a href="/dyspozytor" data-role="dispatcher" data-color="#1593C9"
+           class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
+           style="border:1.5px solid #1593C966;">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Firma / Dyspozytor</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background-color:#1593C914;color:#1593C9;">
+              <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
+            </span>
+          </div>
+          <!-- mini-wizualizacja: słupki + siatka + VOL/H -->
+          <div class="mt-5 h-20 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
+            <div class="relative h-full w-full">
+              <div class="absolute inset-0 rounded" style="background-image:linear-gradient(#EEF2F6 1px,transparent 1px),linear-gradient(90deg,#EEF2F6 1px,transparent 1px);background-size:100% 25%,16.666% 100%;"></div>
+              <span class="absolute right-0 top-0 font-mono text-[8px] font-medium tracking-wide text-slate-400">VOL / H</span>
+              <div class="relative flex h-full items-end gap-1.5 pt-3.5">
+                <div class="flex-1 rounded-sm" style="height:45%;background-color:#1593C9;opacity:.9;"></div>
+                <div class="flex-1 rounded-sm" style="height:70%;background-color:#1593C9;opacity:.9;"></div>
+                <div class="flex-1 rounded-sm" style="height:38%;background-color:#1593C9;opacity:.9;"></div>
+                <div class="flex-1 rounded-sm" style="height:85%;background-color:#1593C9;opacity:.9;"></div>
+                <div class="flex-1 rounded-sm" style="height:58%;background-color:#1593C9;opacity:.9;"></div>
+                <div class="flex-1 rounded-sm" style="height:74%;background-color:#1593C9;opacity:.9;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 flex-1 space-y-3">
+            <h3 class="text-lg font-bold text-[#0F172A]">Centrum orkiestracji ruchu</h3>
+            <p class="text-sm leading-relaxed text-[#475569]">Sterowanie w czasie rzeczywistym, orkiestracja bram terminalowych i predykcje wąskich gardeł oparte o AI.</p>
+          </div>
+          <span class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
+            Otwórz centrum <i data-lucide="arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
+          </span>
+        </a>
+
+        <!-- Karta: Kierowca -->
+        <a href="/dyspozytor" data-role="driver" data-color="#C0432E"
+           class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
+           style="border:1.5px solid #C0432E66;">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Kierowca terminala</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background-color:#C0432E14;color:#C0432E;">
+              <i data-lucide="truck" class="h-5 w-5"></i>
+            </span>
+          </div>
+          <!-- mini-wizualizacja: trasa nawigacji + GATE 2 -->
+          <div class="mt-5 h-20 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
+            <div class="relative h-full w-full">
+              <svg viewBox="0 0 200 56" class="h-full w-full" preserveAspectRatio="xMidYMid meet" fill="none">
+                <path d="M12 46 C56 46 72 20 116 20 S176 22 190 16" stroke="#C0432E" stroke-width="2.5" stroke-linecap="round"></path>
+                <circle cx="72" cy="26" r="2.5" fill="#CBD5E1"></circle>
+                <circle cx="140" cy="20" r="2.5" fill="#CBD5E1"></circle>
+                <circle cx="12" cy="46" r="8" fill="#C0432E" opacity="0.18"></circle>
+                <circle cx="12" cy="46" r="4" fill="#C0432E"></circle>
+                <circle cx="190" cy="16" r="3.5" fill="#10B981"></circle>
+              </svg>
+              <span class="absolute right-0 top-0 flex items-center gap-1 font-mono text-[8px] font-semibold text-emerald-600">
+                <i data-lucide="flag" class="h-2.5 w-2.5"></i> GATE 2
+              </span>
+            </div>
+          </div>
+          <div class="mt-6 flex-1 space-y-3">
+            <h3 class="text-lg font-bold text-[#0F172A]">Nawigacja i status slotu</h3>
+            <p class="text-sm leading-relaxed text-[#475569]">Mobilny asystent dla kierowców: nawigacja, dostępność slotów i miejsca w strefach buforowych.</p>
+          </div>
+          <span class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
+            Uruchom aplikację <i data-lucide="arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
+          </span>
+        </a>
+
+        <!-- Karta: Klient B2B -->
+        <a href="/dyspozytor" data-role="client" data-color="#DDA017"
+           class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
+           style="border:1.5px solid #DDA01766;">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Portal Klienta B2B</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background-color:#DDA01714;color:#DDA017;">
+              <i data-lucide="bar-chart-3" class="h-5 w-5"></i>
+            </span>
+          </div>
+          <!-- mini-wizualizacja: mierniki ETA -->
+          <div class="mt-5 h-20 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
+            <div class="flex h-full flex-col justify-center gap-1.5">
+              <div class="space-y-1">
+                <div class="flex items-center justify-between font-mono text-[8px] leading-none">
+                  <span class="font-medium text-slate-500">MSK-7741 • 82%</span><span class="text-slate-400">ETA 14:20</span>
+                </div>
+                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" style="width:82%;background-color:#DDA017;"></div></div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center justify-between font-mono text-[8px] leading-none">
+                  <span class="font-medium text-slate-500">TCLU-3052 • 54%</span><span class="text-slate-400">ETA 15:05</span>
+                </div>
+                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" style="width:54%;background-color:#DDA017;"></div></div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center justify-between font-mono text-[8px] leading-none">
+                  <span class="font-medium text-slate-500">HLBU-9920 • 31%</span><span class="text-slate-400">ETA 16:40</span>
+                </div>
+                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" style="width:31%;background-color:#DDA017;"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 flex-1 space-y-3">
+            <h3 class="text-lg font-bold text-[#0F172A]">Widoczność łańcucha dostaw</h3>
+            <p class="text-sm leading-relaxed text-[#475569]">Precyzyjne ETA kontenerów, pełna widoczność łańcucha dostaw i narzędzia zapobiegania demurrage.</p>
+          </div>
+          <span class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
+            Wejdź do portalu <i data-lucide="arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
+          </span>
+        </a>
+
+      </section>
+    </div>
+
+    <footer class="border-t border-slate-100 bg-[#F8FAFC] py-6 text-center text-xs text-slate-400">
+      PortPulse · monitoring i predykcja ruchu portowego · Gdańsk · Gdynia · Szczecin
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // ikony
+    lucide.createIcons();
+
+    // zegar w badge statusu
+    const clock = document.getElementById("clock");
+    function tick() {
+      clock.textContent = new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // interakcja: podświetlanie ścieżki + karty (mirror zachowania React)
+    const svg = document.getElementById("pipeline");
+    const node = document.getElementById("pipeline-node");
+    const ROLES = {
+      dispatcher: "#1593C9",
+      driver: "#C0432E",
+      client: "#DDA017",
+    };
+
+    function setActive(id) {
+      const color = ROLES[id];
+      svg.style.setProperty("--trunk", color);
+      node.setAttribute("stroke", color);
+      Object.keys(ROLES).forEach((rid) => {
+        const p = document.getElementById("branch-" + rid);
+        const on = rid === id;
+        p.setAttribute("stroke-opacity", on ? "1" : "0.5");
+        p.setAttribute("stroke-width", on ? "4" : "3");
+      });
+    }
+    function clearActive() {
+      svg.style.setProperty("--trunk", "#CBD5E1");
+      node.setAttribute("stroke", "#94A3B8");
+      Object.keys(ROLES).forEach((rid) => {
+        const p = document.getElementById("branch-" + rid);
+        p.setAttribute("stroke-opacity", "0.5");
+        p.setAttribute("stroke-width", "3");
+      });
+    }
+
+    document.querySelectorAll(".role-card").forEach((card) => {
+      const id = card.dataset.role;
+      const color = card.dataset.color;
+      const activate = () => {
+        setActive(id);
+        card.style.borderColor = color;
+        card.style.transform = "translateY(-6px)";
+        card.style.boxShadow = "0 24px 50px -24px " + color + "80";
+      };
+      const deactivate = () => {
+        clearActive();
+        card.style.borderColor = color + "66";
+        card.style.transform = "none";
+        card.style.boxShadow = "0 1px 3px rgba(15,23,42,0.06)";
+      };
+      card.addEventListener("mouseenter", activate);
+      card.addEventListener("mouseleave", deactivate);
+      card.addEventListener("focusin", activate);
+      card.addEventListener("focusout", deactivate);
+    });
+  </script>
+</body>
+</html>
