@@ -255,6 +255,32 @@ function initControls() {
       }, 300);
     });
   }
+
+  const btnOnDemand = document.getElementById("btn-on-demand-report");
+  if (btnOnDemand) {
+    btnOnDemand.addEventListener("click", async () => {
+      btnOnDemand.disabled = true;
+      const originalText = btnOnDemand.textContent;
+      btnOnDemand.textContent = "Generowanie...";
+      try {
+        const res = await fetch("/api/reports/on-demand", { method: "POST" });
+        if (!res.ok) throw new Error("Blad API");
+        const data = await res.json();
+        
+        // Prepends the new report to the existing cache or DOM
+        if (data.status === "ok" && data.report) {
+          cache.reports = [data.report, ...(cache.reports || [])];
+          renderReports();
+          alert("Raport globalny wygenerowany!");
+        }
+      } catch (err) {
+        alert("Blad generowania raportu: " + err.message);
+      } finally {
+        btnOnDemand.disabled = false;
+        btnOnDemand.textContent = originalText;
+      }
+    });
+  }
 }
 
 function toggleLayer(layer, on) {
@@ -399,7 +425,8 @@ function renderBottlenecks() {
 
 function renderReports() {
   const rows = filterPort(cache.reports || []);
-  const el = document.getElementById("panel-reports");
+  const el = document.getElementById("reports-content");
+  if (!el) return;
   if (!rows.length) {
     el.innerHTML = emptyMsg("Brak raportow operacyjnych - ruch w normie.");
     return;

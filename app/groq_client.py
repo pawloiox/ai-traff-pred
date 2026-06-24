@@ -20,83 +20,56 @@ logger = logging.getLogger("port_traffic_pulse.groq")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 _FIELDS_DESC = (
-    '- "headline": krotki naglowek (max ~8 slow),\n'
-    '- "cause": prawdopodobna przyczyna utrudnienia (1 zdanie). Jesli podano dominujacy '
-    "skladnik CPI, oprzyj na nim przyczyne (presja_portu = nadchodzacy statek/fala "
-    "ciezarowek z terminala; trend = narastajaca dynamika; baseline = typowy ruch o tej "
-    "porze; incydenty = zdarzenie drogowe),\n"
-    '- "recommendation": konkretna rekomendacja dzialania dla dyspozytora (1-2 zdania),\n'
-    '- "summary": pelne podsumowanie laczace stan, przyczyne, rekomendacje i trend '
-    "(2-3 zdania).\n"
+    '- "headline": max 5 slow\n'
+    '- "cause": przyczyna utrudnienia (1 krotkie zdanie)\n'
+    '- "recommendation": rekomendacja dla dyspozytora (1 krotkie zdanie)\n'
+    '- "summary": krotkie podsumowanie (max 2 zdania)\n'
 )
 
 SYSTEM_PROMPT = (
-    "Jestes asystentem dyzurnego w centrum dowodzenia portu morskiego. "
-    "Na podstawie ustrukturyzowanych danych o ruchu na drodze dojazdowej do terminala "
-    "tworzysz krotki raport operacyjny po polsku. Pisz konkretnie, rzeczowo i zwiezle, "
-    "jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n"
-    "Jeśli pogoda wskazuje na deszcz (Rain: True) lub czas wskazuje na godziny szczytu (Rush Hour: True), explicitly "
-    "mention how they contribute to the delay in the 'cause' and 'summary' fields.\n\n"
+    "Asystent centrum dowodzenia portu. "
+    "Tworzysz krotkie raporty operacyjne po polsku dla dyspozytorow.\n"
+    "Jesli pogoda=deszcz lub czas=godziny szczytu, wspomnij o tym w 'cause'.\n\n"
     "Zwroc WYLACZNIE obiekt JSON o polach:\n" + _FIELDS_DESC +
     "Nie dodawaj zadnego tekstu poza obiektem JSON."
 )
 
 SYSTEM_PROMPT_BATCH = (
-    "Jestes asystentem dyzurnego w centrum dowodzenia portu morskiego. "
-    "Na podstawie listy ustrukturyzowanych sytuacji ruchu na drogach dojazdowych do "
-    "terminali tworzysz krotkie raporty operacyjne po polsku. Pisz konkretnie, rzeczowo "
-    "i zwiezle, jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n"
-    "Jeśli pogoda wskazuje na deszcz (Rain: True) lub czas wskazuje na godziny szczytu (Rush Hour: True), explicitly "
-    "mention how they contribute to the delay in the 'cause' and 'summary' fields.\n\n"
+    "Asystent centrum dowodzenia portu. "
+    "Tworzysz krotkie raporty operacyjne po polsku dla dyspozytorow.\n"
+    "Jesli pogoda=deszcz lub czas=godziny szczytu, wspomnij o tym w 'cause'.\n\n"
     "Otrzymasz liste sytuacji, kazda oznaczona polem id. Zwroc WYLACZNIE obiekt JSON "
-    'w formacie: {"reports": [{"id": <to samo id>, "headline": ..., "cause": ..., '
-    '"recommendation": ..., "summary": ...}, ...]}.\n'
+    'w formacie: {"reports": [{"id": 0, "headline": "txt", "cause": "txt", '
+    '"recommendation": "txt", "summary": "txt"}]}.\n'
     "Dla KAZDEJ sytuacji wygeneruj dokladnie jeden raport o tym samym id. Pola raportu:\n"
     + _FIELDS_DESC +
     "Nie dodawaj zadnego tekstu poza obiektem JSON."
 )
 
+SYSTEM_PROMPT_GLOBAL_ONDEMAND = (
+    "Glowny analityk portu. Napisz krotki globalny raport ruchu. "
+    "Nawet bez zatorow uspokoj dyspozytora.\n"
+    "Zwroc WYLACZNIE obiekt JSON o polach:\n"
+    '- "headline": max 5 slow\n'
+    '- "summary": max 3 zdania\n'
+)
 
 def _situation_to_prompt(s: Dict[str, Any]) -> str:
-    """Buduje czytelny opis sytuacji dla modelu."""
     lines = [
-        f"Port: {s.get('port_id')}",
-        f"Punkt pomiarowy: {s.get('point_name')}",
-        f"Droga: {s.get('road')}",
-        f"Poziom: {s.get('level')}",
-        f"Srednia kongestia w ostatniej godzinie: {round((s.get('avg_ratio') or 0) * 100)}%",
-        f"Maksymalna kongestia: {round((s.get('max_ratio') or 0) * 100)}%",
-        f"Kongestia narasta: {'tak' if s.get('rising') else 'nie'}",
-        f"Anomalia wzgledem typowego ruchu: {'tak' if s.get('is_anomaly') else 'nie'}",
-        f"Droga zamknieta: {'tak' if s.get('road_closure') else 'nie'}",
+        f"P:{s.get('point_name')}",
+        f"Lvl:{s.get('level')} Kong:{round((s.get('avg_ratio') or 0)*100)}%",
+        f"Rosnie:{s.get('rising')} Anomalia:{s.get('is_anomaly')}",
     ]
-
     pred = s.get("prediction")
     if pred:
-        lines.append(
-            f"Prognoza na {pred.get('horizon_minutes')} min: "
-            f"{round((pred.get('predicted_ratio') or 0) * 100)}% kongestii "
-            f"(zmiana {round((pred.get('slope_per_10min') or 0) * 100, 1)} pkt%/10 min)"
-        )
-
+        lines.append(f"Prog:{pred.get('horizon_minutes')}m->{round((pred.get('predicted_ratio') or 0)*100)}%")
     inc = s.get("linked_incident")
     if inc:
-        delay = inc.get("delay_seconds")
-        delay_txt = f", opoznienie ok. {round(delay / 60)} min" if delay else ""
-        lines.append(
-            f"Pobliski incydent TomTom: {inc.get('category_label')} "
-            f"- {inc.get('description')} (ok. {inc.get('distance_m')} m{delay_txt})"
-        )
-    else:
-        lines.append("Pobliski incydent TomTom: brak")
-
-    w_data = s.get('weather') or {}
-    w_text = f"Weather Rain: {w_data.get('is_raining', False)}, Wind: {w_data.get('wind_speed', 0)}" if w_data else "No weather anomaly"
-    lines.append(f"Pogoda: {w_text}")
-    
-    t_data = s.get('temporal') or {}
-    t_text = f"Rush Hour: {t_data.get('is_rush_hour', False)}" if t_data else "Standard time"
-    lines.append(f"Kontekst czasowy: {t_text}")
+        lines.append(f"Incydent:{inc.get('description')}")
+    w = s.get('weather') or {}
+    if w.get('is_raining'): lines.append("Deszcz")
+    t = s.get('temporal') or {}
+    if t.get('is_rush_hour'): lines.append("Szczyt")
 
     # Rozklad CPI (Indeks Presji Zatorowej) - dominujacy skladnik = przyczyna.
     cpi_s = s.get("cpi")
@@ -227,6 +200,62 @@ async def generate_reports_batch(
     except (httpx.HTTPError, json.JSONDecodeError, KeyError, ValueError) as exc:
         logger.warning("Groq generacja zbiorcza nieudana: %s", exc)
         return result
+    finally:
+        if owns_client and client is not None:
+            await client.aclose()
+
+
+async def generate_global_report(
+    situations: List[Dict[str, Any]], client: Optional[httpx.AsyncClient] = None
+) -> Optional[Dict[str, str]]:
+    """Generuje jeden globalny raport dla wszystkich sytuacji na zadanie."""
+    if not settings.groq_enabled or not settings.groq_api_key:
+        return None
+
+    blocks = []
+    for s in situations:
+        blocks.append(f"Punkt: {s.get('point_name')} ({s.get('port_id')})\n"
+                      f"  Poziom: {s.get('level')}\n"
+                      f"  Kongestia: {round((s.get('avg_ratio') or 0) * 100)}%\n"
+                      f"  Pogoda: Deszcz={s.get('weather', {}).get('is_raining', False)}")
+    
+    if not blocks:
+        user_content = "Brak aktywnych punktow pomiarowych do analizy."
+    else:
+        user_content = "Aktualny stan wezlow:\n" + "\n".join(blocks)
+
+    payload = {
+        "model": settings.groq_model,
+        "temperature": 0.4,
+        "max_tokens": 400,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT_GLOBAL_ONDEMAND},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.groq_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    owns_client = client is None
+    if owns_client:
+        client = httpx.AsyncClient(trust_env=False, timeout=settings.groq_timeout)
+    try:
+        resp = await client.post(GROQ_URL, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+        return {
+            "headline": str(parsed.get("headline", "Raport Globalny")).strip(),
+            "summary": str(parsed.get("summary", "")).strip(),
+            "timestamp": "Teraz"
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Groq globalna generacja nieudana: %s", exc)
+        return None
     finally:
         if owns_client and client is not None:
             await client.aclose()

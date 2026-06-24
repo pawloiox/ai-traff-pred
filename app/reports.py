@@ -334,3 +334,41 @@ def get_cached_reports(limit: int = 8) -> List[Dict[str, Any]]:
 
 def cache_timestamp() -> Optional[float]:
     return _cache.get("ts")
+
+
+async def generate_on_demand_global_report() -> Optional[Dict[str, Any]]:
+    """Generuje globalny raport na zadanie (Groq), uwzgledniajac wszystkie wezly."""
+    all_points = analysis.bottlenecks(limit=100)
+    situations: List[Dict[str, Any]] = []
+    
+    for b in all_points:
+        pid = b["point_id"]
+        incident = _nearest_incident(b["port_id"], b.get("lat"), b.get("lon"))
+        situations.append(
+            {
+                "point_id": pid,
+                "point_name": b["point_name"],
+                "port_id": b["port_id"],
+                "level": b["level"],
+                "avg_ratio": b["avg_ratio"],
+                "weather": storage.latest_weather(b["port_id"]),
+                "linked_incident": incident
+            }
+        )
+    
+    situations.sort(
+        key=lambda s: (_SEVERITY.get(s["level"], 0), s["avg_ratio"]),
+        reverse=True,
+    )
+    
+    report = await groq_client.generate_global_report(situations[:20])
+    
+    if report:
+        report["id"] = "global_ondemand"
+        report["point_name"] = "Raport Calosciowy"
+        report["level"] = "info"
+        report["port_id"] = "GLOBAL"
+        report["ts"] = time.time()
+        return report
+    
+    return None

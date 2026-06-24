@@ -112,11 +112,24 @@ def api_ml_train():
 
 
 @app.get("/api/reports")
-def api_reports(limit: int = Query(8, ge=1, le=50)):
+def api_reports(limit: int = Query(10, ge=1, le=50)):
+    from . import reports
+
     return {
         "generated_at": reports.cache_timestamp(),
         "reports": reports.get_cached_reports(limit),
     }
+
+
+@app.post("/api/reports/on-demand")
+async def api_reports_on_demand():
+    """Generuje globalny raport na zadanie przez Groq."""
+    from . import reports
+
+    report = await reports.generate_on_demand_global_report()
+    if not report:
+        raise HTTPException(status_code=500, detail="Nie udalo sie wygenerowac raportu globalnego.")
+    return {"status": "ok", "report": report}
 
 @app.get("/api/reports/{point_id}/pdf")
 def api_report_pdf(point_id: str):
