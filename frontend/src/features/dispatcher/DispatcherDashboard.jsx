@@ -507,6 +507,8 @@ export default function DispatcherDashboard() {
   const [dailyPattern, setDailyPattern] = useState([]);
   const [riskScores, setRiskScores] = useState([]);
 
+  const globalReportRef = useRef(null);
+
   const mapRef = useRef(null);
   const layersRef = useRef({});
   const markersRef = useRef({});
@@ -583,7 +585,10 @@ export default function DispatcherDashboard() {
     setStatus(st);
     setPredictions(v(1, { predictions: [] }).predictions);
     setBottlenecks(v(2, { bottlenecks: [] }).bottlenecks);
-    setReports(v(3, { reports: [] }).reports);
+    const cachedReports = v(3, { reports: [] }).reports;
+    // Zachowaj raport globalny on-demand miedzy cyklami odswiezania.
+    const gr = globalReportRef.current;
+    setReports(gr ? [gr, ...cachedReports] : cachedReports);
     setIncidentsList(v(4, { incidents: [] }).incidents);
     setWeather(v(5, { weather: [] }).weather);
     setHistory(v(6, { history: [] }).history);
@@ -647,9 +652,17 @@ export default function DispatcherDashboard() {
   async function generateReport() {
     setGenerating(true);
     try {
-      await fetch("/api/reports/on-demand", { method: "POST" });
+      const res = await fetch("/api/reports/on-demand", { method: "POST" });
+      const onDemand = await res.json();
       const d = await getJSON("/api/reports?limit=12");
-      setReports(d.reports);
+      const list = d.reports || [];
+      // Raport globalny on-demand na góre listy (nie jest w cache serwera).
+      if (onDemand?.status === "ok" && onDemand.report) {
+        globalReportRef.current = onDemand.report;
+        setReports([onDemand.report, ...list]);
+      } else {
+        setReports(list);
+      }
     } catch (e) { console.error(e); }
     finally { setGenerating(false); }
   }
