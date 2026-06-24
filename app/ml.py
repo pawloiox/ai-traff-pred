@@ -26,6 +26,35 @@ MODEL_PATH = "xgboost_model.json"
 _GLOBAL_MODEL: Optional[xgb.XGBRegressor] = None
 _IS_TRAINING = False
 
+# Mapowanie point_id -> indeks numeryczny (budowane przy treningu, utrwalane)
+_POINT_ID_MAP: Dict[str, int] = {}
+_POINT_MAP_PATH = "point_id_map.json"
+
+
+def _load_point_map():
+    """Wczytuje mapowanie point_id -> int z dysku."""
+    global _POINT_ID_MAP
+    import json, os
+    if os.path.exists(_POINT_MAP_PATH):
+        try:
+            with open(_POINT_MAP_PATH, "r") as f:
+                _POINT_ID_MAP = json.load(f)
+            logger.info("Zaladowano mapowanie point_id (%d punktow)", len(_POINT_ID_MAP))
+        except Exception as e:
+            logger.error("Blad wczytywania mapy punktow: %s", e)
+
+
+def _save_point_map():
+    """Zapisuje mapowanie point_id -> int na dysk."""
+    import json
+    with open(_POINT_MAP_PATH, "w") as f:
+        json.dump(_POINT_ID_MAP, f)
+
+
+def point_id_to_idx(point_id: str) -> int:
+    """Zwraca indeks numeryczny dla point_id; -1 jesli nieznany."""
+    return _POINT_ID_MAP.get(point_id, -1)
+
 
 def load_model():
     """Wczytuje pre-trenowany model z dysku (jesli istnieje)."""
@@ -33,6 +62,7 @@ def load_model():
     if xgb is None:
         return
     import os
+    _load_point_map()
     if os.path.exists(MODEL_PATH):
         try:
             model = xgb.XGBRegressor()
@@ -50,6 +80,8 @@ def build_training_dataset(db_path: str = "traffic.db") -> Tuple[pd.DataFrame, p
     target `future_ratio`.
     Zwraca (X, y) jako pandas DataFrame i Series.
     """
+    global _POINT_ID_MAP
+
     logger.info("Budowanie zestawu danych treningowych...")
     with sqlite3.connect(db_path) as conn:
         # Pobieramy podstawowe pomiary z tomtom
@@ -69,6 +101,15 @@ def build_training_dataset(db_path: str = "traffic.db") -> Tuple[pd.DataFrame, p
 
     if df.empty:
         return pd.DataFrame(), pd.Series()
+
+    # Budujemy stabilne mapowanie point_id -> int (zachowujemy kolejnosc)
+    unique_points = sorted(df["point_id"].unique())
+    _POINT_ID_MAP = {pid: idx for idx, pid in enumerate(unique_points)}
+    _save_point_map()
+    logger.info("Zbudowano mapowanie point_id: %s", _POINT_ID_MAP)
+
+    # Dodajemy kolumne point_idx
+    df["point_idx"] = df["point_id"].map(_POINT_ID_MAP)
 
     # Zamiana dow_sqlite (0=Niedziela) na day_of_week (0=Poniedzialek)
     df["day_of_week"] = df["dow_sqlite"].replace({0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5})
@@ -157,7 +198,7 @@ def build_training_dataset(db_path: str = "traffic.db") -> Tuple[pd.DataFrame, p
         merged["horizon_hours"] = horizon_hours
         
         features = merged[[
-            "hour", "day_of_week", "is_weekend", 
+            "point_idx", "hour", "day_of_week", "is_weekend", 
             "weather_penalty", "port_pressure", 
             "congestion_ratio", "horizon_hours"
         ]]
@@ -199,12 +240,13 @@ def train_model() -> Dict[str, Any]:
             
         # Model Parameters
         model = xgb.XGBRegressor(
-            n_estimators=100,
-            learning_rate=0.1,
-            max_depth=5,
+            n_estimators=200,
+            learning_rate=0.08,
+            max_depth=6,
             objective="reg:squarederror",
             n_jobs=-1,
-            random_state=42
+            random_state=42,
+            enable_categorical=False,
         )
         
         model.fit(X, y)
@@ -236,7 +278,8 @@ def predict_horizon(
     current_ratio: float,
     weather_penalty: float,
     port_pressure: float,
-    horizon_hours: int
+    horizon_hours: int,
+    point_id: str = "",
 ) -> float:
     """Zwraca predykcje z modelu XGBoost. Zglasza ValueError jesli model nie gotowy."""
     if _GLOBAL_MODEL is None:
@@ -248,7 +291,10 @@ def predict_horizon(
     dow = dt.weekday()
     is_weekend = 1 if dow >= 5 else 0
 
+    p_idx = point_id_to_idx(point_id)
+
     features = pd.DataFrame([{
+        "point_idx": p_idx,
         "hour": hour,
         "day_of_week": dow,
         "is_weekend": is_weekend,
@@ -264,4 +310,3 @@ def predict_horizon(
 
 # Proba wczytania modelu przy imporcie modulu
 load_model()
-

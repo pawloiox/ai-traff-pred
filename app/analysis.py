@@ -228,7 +228,8 @@ def predict_trends(horizon_hours: int = 1) -> List[Dict[str, Any]]:
                     current_ratio=current,
                     weather_penalty=w_penalty,
                     port_pressure=port_term,
-                    horizon_hours=horizon_hours
+                    horizon_hours=horizon_hours,
+                    point_id=point_id,
                 )
             else:
                 raise ValueError("ML model not ready")
