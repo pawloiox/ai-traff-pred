@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, BarChart3, Flag, LayoutDashboard, Truck } from "lucide-react";
 
 /**
- * PulsPort — Landing Page (Light / Corporate)
+ * PulsePort — Landing Page (Light / Corporate)
  * -------------------------------------------------------------
  * Profesjonalny, jasny layout dla portów i firm logistycznych:
  * fotograficzny baner hero → jasna sekcja → diagram trzech dróg →
@@ -215,7 +215,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-white shadow" />
               <span className="text-lg font-extrabold tracking-tight text-white">
-                Puls<span className="text-white/70">Port</span>
+                Pulse<span className="text-white/70">Port</span>
               </span>
             </div>
             <div className="flex items-center gap-2.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white backdrop-blur-md">
@@ -318,7 +318,7 @@ export default function LandingPage() {
         </div>
 
         <footer className="border-t border-slate-100 bg-[#F8FAFC] py-6 text-center text-xs text-slate-400">
-          PulsPort · monitoring i predykcja ruchu portowego · Gdańsk · Gdynia · Szczecin
+          PulsePort · monitoring i predykcja ruchu portowego · Gdańsk · Gdynia · Szczecin
         </footer>
       </div>
     </div>
