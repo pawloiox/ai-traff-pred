@@ -1,0 +1,23 @@
+{
+  "name": "portpulse-frontend-preview",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Poboczny projekt podglądu UI (Osoba 1). Nie modyfikuje istniejącego frontu w app/static.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^1.21.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.4",
+    "@vitejs/plugin-react": "^4.4.1",
+    "tailwindcss": "^4.1.4",
+    "vite": "^6.3.1"
+  }
+}
