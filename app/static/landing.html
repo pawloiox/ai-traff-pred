@@ -1,28 +1,33 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PulsePort — Żywy układ nerwowy logistyki portowej</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
   <style>
-    body { font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+    body {
+      font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+    }
+
     /* domyślny kolor pnia/węzła diagramu (slate-300) */
-    #pipeline { --trunk: #CBD5E1; }
+    #pipeline {
+      --trunk: #CBD5E1;
+    }
   </style>
 </head>
+
 <body class="min-h-screen w-full bg-white text-slate-900 antialiased">
 
   <!-- =================== Baner fotograficzny =================== -->
   <div class="relative h-[460px] w-full overflow-hidden sm:h-[520px]">
-    <img
-      src="/static/hero-port.jpg"
+    <img src="/static/hero-port.jpg"
       onerror="if(this.src.indexOf('unsplash')===-1){this.src='https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=1600';}"
-      alt="Terminal kontenerowy w porcie"
-      class="absolute inset-0 h-full w-full object-cover"
-    />
+      alt="Terminal kontenerowy w porcie" class="absolute inset-0 h-full w-full object-cover" />
     <!-- maska kontrastu + dół przechodzący w biel -->
     <div class="absolute inset-0 bg-gradient-to-b from-slate-950/50 to-slate-900/30"></div>
     <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white"></div>
@@ -32,9 +37,11 @@
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div class="flex items-center gap-2.5">
           <span class="h-2.5 w-2.5 rounded-full bg-white shadow"></span>
-          <span class="text-lg font-extrabold tracking-tight text-white">Pulse<span class="text-white/70">Port</span></span>
+          <span class="text-lg font-extrabold tracking-tight text-white">Pulse<span
+              class="text-white/70">Port</span></span>
         </div>
-        <div class="flex items-center gap-2.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+        <div
+          class="flex items-center gap-2.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white backdrop-blur-md">
           <span class="relative flex h-2 w-2">
             <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70"></span>
             <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-400"></span>
@@ -47,7 +54,8 @@
 
     <!-- Tekst hero -->
     <div class="relative z-[5] mx-auto flex h-full max-w-3xl flex-col items-center justify-center px-6 text-center">
-      <h1 class="text-balance text-4xl font-extrabold leading-[1.08] tracking-tight text-white drop-shadow-sm sm:text-6xl">
+      <h1
+        class="text-balance text-4xl font-extrabold leading-[1.08] tracking-tight text-white drop-shadow-sm sm:text-6xl">
         Żywy układ nerwowy logistyki portowej
       </h1>
       <p class="mt-5 max-w-2xl text-base leading-relaxed text-slate-100/90 sm:text-lg">
@@ -62,7 +70,8 @@
 
       <!-- Diagram trzech dróg wyłaniający się z banera -->
       <div class="relative z-10 -mt-10">
-        <svg id="pipeline" viewBox="0 0 1200 160" class="h-24 w-full sm:h-32" fill="none" preserveAspectRatio="none" aria-hidden="true">
+        <svg id="pipeline" viewBox="0 0 1200 160" class="h-24 w-full sm:h-32" fill="none" preserveAspectRatio="none"
+          aria-hidden="true">
           <defs>
             <linearGradient id="trunkFade" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stop-color="var(--trunk)" stop-opacity="0"></stop>
@@ -70,11 +79,16 @@
               <stop offset="1" stop-color="var(--trunk)" stop-opacity="1"></stop>
             </linearGradient>
           </defs>
-          <line x1="600" y1="0" x2="600" y2="40" stroke="url(#trunkFade)" stroke-width="3" stroke-linecap="round"></line>
-          <path id="branch-dispatcher" d="M600 40 C600 110 200 90 200 150" stroke="#1593C9" stroke-width="3" stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
-          <path id="branch-driver"     d="M600 40 L600 150"                 stroke="#C0432E" stroke-width="3" stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
-          <path id="branch-client"     d="M600 40 C600 110 1000 90 1000 150" stroke="#DDA017" stroke-width="3" stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
-          <circle id="pipeline-node" cx="600" cy="40" r="6" fill="#ffffff" stroke="#94A3B8" stroke-width="3" class="transition-colors duration-300"></circle>
+          <line x1="600" y1="0" x2="600" y2="40" stroke="url(#trunkFade)" stroke-width="3" stroke-linecap="round">
+          </line>
+          <path id="branch-dispatcher" d="M600 40 C600 110 200 90 200 150" stroke="#1593C9" stroke-width="3"
+            stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
+          <path id="branch-driver" d="M600 40 L600 150" stroke="#C0432E" stroke-width="3" stroke-opacity="0.5"
+            stroke-linecap="round" class="transition-all duration-300"></path>
+          <path id="branch-client" d="M600 40 C600 110 1000 90 1000 150" stroke="#DDA017" stroke-width="3"
+            stroke-opacity="0.5" stroke-linecap="round" class="transition-all duration-300"></path>
+          <circle id="pipeline-node" cx="600" cy="40" r="6" fill="#ffffff" stroke="#94A3B8" stroke-width="3"
+            class="transition-colors duration-300"></circle>
         </svg>
       </div>
 
@@ -83,19 +97,23 @@
 
         <!-- Karta: Firma / Dyspozytor -->
         <a href="/app#/dyspozytor" data-role="dispatcher" data-color="#1593C9"
-           class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
-           style="border:1.5px solid #1593C966;">
+          class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
+          style="border:1.5px solid #1593C966;">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Dyspozytor</span>
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background-color:#1593C914;color:#1593C9;">
+            <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Firma / Dyspozytor</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl"
+              style="background-color:#1593C914;color:red;">
               <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
             </span>
           </div>
           <!-- mini-wizualizacja: słupki + siatka + VOL/H -->
           <div class="mt-5 h-20 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
             <div class="relative h-full w-full">
-              <div class="absolute inset-0 rounded" style="background-image:linear-gradient(#EEF2F6 1px,transparent 1px),linear-gradient(90deg,#EEF2F6 1px,transparent 1px);background-size:100% 25%,16.666% 100%;"></div>
-              <span class="absolute right-0 top-0 font-mono text-[8px] font-medium tracking-wide text-slate-400">VOL / H</span>
+              <div class="absolute inset-0 rounded"
+                style="background-image:linear-gradient(#EEF2F6 1px,transparent 1px),linear-gradient(90deg,#EEF2F6 1px,transparent 1px);background-size:100% 25%,16.666% 100%;">
+              </div>
+              <span class="absolute right-0 top-0 font-mono text-[8px] font-medium tracking-wide text-slate-400">VOL /
+                H</span>
               <div class="relative flex h-full items-end gap-1.5 pt-3.5">
                 <div class="flex-1 rounded-sm" style="height:45%;background-color:#1593C9;opacity:.9;"></div>
                 <div class="flex-1 rounded-sm" style="height:70%;background-color:#1593C9;opacity:.9;"></div>
@@ -107,21 +125,25 @@
             </div>
           </div>
           <div class="mt-6 flex-1 space-y-3">
-            <h3 class="text-lg font-bold text-[#0F172A]">Panel dyspozytora portu</h3>
-            <p class="text-sm leading-relaxed text-[#475569]">Monitoruj ruch ciężarówek, przewiduj zatory i zarządzaj bramami terminala w czasie rzeczywistym.</p>
+            <h3 class="text-lg font-bold text-[#0F172A]">Centrum orkiestracji ruchu</h3>
+            <p class="text-sm leading-relaxed text-[#475569]">Sterowanie w czasie rzeczywistym, orkiestracja bram
+              terminalowych i predykcje wąskich gardeł oparte o AI.</p>
           </div>
-          <span class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
-            Otwórz panel <i data-lucide="arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
+          <span
+            class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
+            Otwórz centrum <i data-lucide="arrow-right"
+              class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
           </span>
         </a>
 
         <!-- Karta: Kierowca -->
         <a href="/app#/kierowca" data-role="driver" data-color="#C0432E"
-           class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
-           style="border:1.5px solid #C0432E66;">
+          class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
+          style="border:1.5px solid #C0432E66;">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Kierowca / Przewoźnik</span>
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background-color:#C0432E14;color:#C0432E;">
+            <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Kierowca terminala</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl"
+              style="background-color:#C0432E14;color:#C0432E;">
               <i data-lucide="truck" class="h-5 w-5"></i>
             </span>
           </div>
@@ -129,34 +151,40 @@
           <div class="mt-5 h-20 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
             <div class="relative h-full w-full">
               <svg viewBox="0 0 200 56" class="h-full w-full" preserveAspectRatio="xMidYMid meet" fill="none">
-                <path d="M12 46 C56 46 72 20 116 20 S176 22 190 16" stroke="#C0432E" stroke-width="2.5" stroke-linecap="round"></path>
+                <path d="M12 46 C56 46 72 20 116 20 S176 22 190 16" stroke="#C0432E" stroke-width="2.5"
+                  stroke-linecap="round"></path>
                 <circle cx="72" cy="26" r="2.5" fill="#CBD5E1"></circle>
                 <circle cx="140" cy="20" r="2.5" fill="#CBD5E1"></circle>
                 <circle cx="12" cy="46" r="8" fill="#C0432E" opacity="0.18"></circle>
                 <circle cx="12" cy="46" r="4" fill="#C0432E"></circle>
                 <circle cx="190" cy="16" r="3.5" fill="#10B981"></circle>
               </svg>
-              <span class="absolute right-0 top-0 flex items-center gap-1 font-mono text-[8px] font-semibold text-emerald-600">
+              <span
+                class="absolute right-0 top-0 flex items-center gap-1 font-mono text-[8px] font-semibold text-emerald-600">
                 <i data-lucide="flag" class="h-2.5 w-2.5"></i> GATE 2
               </span>
             </div>
           </div>
           <div class="mt-6 flex-1 space-y-3">
-            <h3 class="text-lg font-bold text-[#0F172A]">Asystent kierowcy</h3>
-            <p class="text-sm leading-relaxed text-[#475569]">Sprawdź wyznaczoną bramę, godzinę wjazdu, status slotu i najlepszą trasę do terminala.</p>
+            <h3 class="text-lg font-bold text-[#0F172A]">Nawigacja i status slotu</h3>
+            <p class="text-sm leading-relaxed text-[#475569]">Mobilny asystent dla kierowców: nawigacja, dostępność
+              slotów i miejsca w strefach buforowych.</p>
           </div>
-          <span class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
-            Uruchom asystenta <i data-lucide="arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
+          <span
+            class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
+            Uruchom aplikację <i data-lucide="arrow-right"
+              class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
           </span>
         </a>
 
         <!-- Karta: Klient B2B -->
         <a href="/app#/klient" data-role="client" data-color="#DDA017"
-           class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
-           style="border:1.5px solid #DDA01766;">
+          class="role-card group flex flex-col rounded-3xl bg-white p-8 no-underline transition-all duration-300 ease-in-out sm:p-10"
+          style="border:1.5px solid #DDA01766;">
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Portal Klienta B2B</span>
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background-color:#DDA01714;color:#DDA017;">
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl"
+              style="background-color:#DDA01714;color:#DDA017;">
               <i data-lucide="bar-chart-3" class="h-5 w-5"></i>
             </span>
           </div>
@@ -165,30 +193,42 @@
             <div class="flex h-full flex-col justify-center gap-1.5">
               <div class="space-y-1">
                 <div class="flex items-center justify-between font-mono text-[8px] leading-none">
-                  <span class="font-medium text-slate-500">MSK-7741 • 82%</span><span class="text-slate-400">ETA 14:20</span>
+                  <span class="font-medium text-slate-500">MSK-7741 • 82%</span><span class="text-slate-400">ETA
+                    14:20</span>
                 </div>
-                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" style="width:82%;background-color:#DDA017;"></div></div>
+                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full rounded-full" style="width:82%;background-color:#DDA017;"></div>
+                </div>
               </div>
               <div class="space-y-1">
                 <div class="flex items-center justify-between font-mono text-[8px] leading-none">
-                  <span class="font-medium text-slate-500">TCLU-3052 • 54%</span><span class="text-slate-400">ETA 15:05</span>
+                  <span class="font-medium text-slate-500">TCLU-3052 • 54%</span><span class="text-slate-400">ETA
+                    15:05</span>
                 </div>
-                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" style="width:54%;background-color:#DDA017;"></div></div>
+                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full rounded-full" style="width:54%;background-color:#DDA017;"></div>
+                </div>
               </div>
               <div class="space-y-1">
                 <div class="flex items-center justify-between font-mono text-[8px] leading-none">
-                  <span class="font-medium text-slate-500">HLBU-9920 • 31%</span><span class="text-slate-400">ETA 16:40</span>
+                  <span class="font-medium text-slate-500">HLBU-9920 • 31%</span><span class="text-slate-400">ETA
+                    16:40</span>
                 </div>
-                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" style="width:31%;background-color:#DDA017;"></div></div>
+                <div class="h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full rounded-full" style="width:31%;background-color:#DDA017;"></div>
+                </div>
               </div>
             </div>
           </div>
           <div class="mt-6 flex-1 space-y-3">
-            <h3 class="text-lg font-bold text-[#0F172A]">Widoczność ładunku dostaw</h3>
-            <p class="text-sm leading-relaxed text-[#475569]">Śledź kontenery, przewidywany czas odbioru oraz ryzyko opóźnień lub dodatkowych kosztów.</p>
+            <h3 class="text-lg font-bold text-[#0F172A]">Widoczność łańcucha dostaw</h3>
+            <p class="text-sm leading-relaxed text-[#475569]">Precyzyjne ETA kontenerów, pełna widoczność łańcucha
+              dostaw i narzędzia zapobiegania demurrage.</p>
           </div>
-          <span class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
-            Wejdź do portalu <i data-lucide="arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
+          <span
+            class="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out group-hover:bg-[#0A2A5C] group-hover:shadow-md">
+            Wejdź do portalu <i data-lucide="arrow-right"
+              class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"></i>
           </span>
         </a>
 
@@ -265,4 +305,5 @@
     });
   </script>
 </body>
+
 </html>
