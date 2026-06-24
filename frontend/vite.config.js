@@ -8,5 +8,9 @@ export default defineConfig({
   server: {
     port: 5174,
     open: true,
+    // Podglad pobiera zywe dane z backendu FastAPI (uvicorn :8000).
+    proxy: {
+      "/api": "http://127.0.0.1:8000",
+    },
   },
 });
