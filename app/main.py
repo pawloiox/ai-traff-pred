@@ -248,23 +248,29 @@ def api_port_summary(
     return {"hours": hours, "summary": storage.port_summary(port_id, hours)}
 
 
+# Strony HTML serwujemy bez cache, by przegladarka nie trzymala starej wersji
+# (asset-y w /static/spa/assets sa content-hashowane, wiec moga byc cache'owane).
+_NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+
+
 @app.get("/")
 def index():
-    # Strona tytulowa (wybor roli). Przyciski prowadza do dashboardu.
-    return FileResponse(STATIC_DIR / "landing.html")
+    # Strona tytulowa (wybor roli). Przyciski: Dyspozytor->/dyspozytor,
+    # Kierowca->/app#/kierowca, Klient->/app#/klient.
+    return FileResponse(STATIC_DIR / "landing.html", headers=_NO_CACHE)
 
 
 @app.get("/dyspozytor")
 @app.get("/dashboard")
 def dashboard():
     # Dotychczasowy dashboard (widok firmy/dyspozytora).
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(STATIC_DIR / "index.html", headers=_NO_CACHE)
 
 
 @app.get("/app")
 def spa():
     # Zbudowane SPA (React): widoki Kierowcy (#/kierowca) i Klienta (#/klient).
-    return FileResponse(STATIC_DIR / "spa" / "index.html")
+    return FileResponse(STATIC_DIR / "spa" / "index.html", headers=_NO_CACHE)
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
