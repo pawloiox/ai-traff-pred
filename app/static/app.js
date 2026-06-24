@@ -231,6 +231,51 @@ function initControls() {
     const strokeColor = isLight ? "#0b0f17" : "#e0e4ea";
     Object.values(state.markers).forEach((m) => m.setStyle({ color: strokeColor }));
   });
+
+  // --- Predictions ML slider ---
+  const horizonSlider = document.getElementById("predictionHorizon");
+  const horizonLabel = document.getElementById("horizonLabel");
+  let fetchTimer = null;
+  
+  if (horizonSlider) {
+    horizonSlider.addEventListener("input", (e) => {
+      horizonLabel.textContent = e.target.value;
+      if (fetchTimer) clearTimeout(fetchTimer);
+      fetchTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/predictions?horizon=${e.target.value}`);
+          if (!res.ok) throw new Error("Blad API predykcji");
+          const data = await res.json();
+          cache.predictions = data.predictions;
+          renderPredictions();
+        } catch (err) {
+          console.error(err);
+        }
+      }, 300);
+    });
+  }
+
+  const trainBtn = document.getElementById("trainBtn");
+  if (trainBtn) {
+    trainBtn.addEventListener("click", async () => {
+      trainBtn.disabled = true;
+      trainBtn.textContent = "Trenowanie...";
+      try {
+        const res = await fetch("/api/ml/train", { method: "POST" });
+        const data = await res.json();
+        if (data.status === "ok") {
+          alert(`Model przetrenowany pomyslnie! (Probek: ${data.samples}, Czas: ${data.elapsed_seconds}s)`);
+        } else {
+          alert(`Blad trenowania: ${data.message}`);
+        }
+      } catch (err) {
+        alert("Blad polaczenia: " + err.message);
+      } finally {
+        trainBtn.disabled = false;
+        trainBtn.textContent = "Trenuj ML";
+      }
+    });
+  }
 }
 
 function toggleLayer(layer, on) {
@@ -252,12 +297,14 @@ function initTabs() {
 const cache = {};
 
 async function refreshAll() {
+  const horizonSlider = document.getElementById("predictionHorizon");
+  const horizon = horizonSlider ? horizonSlider.value : 1;
   const results = await Promise.allSettled([
     getJSON("/api/status"),
     getJSON("/api/bottlenecks?window=60&limit=15"),
     getJSON("/api/reports?limit=12"),
     getJSON("/api/incidents"),
-    getJSON("/api/predictions"),
+    getJSON(`/api/predictions?horizon=${horizon}`),
   ]);
   const val = (i, fallback) => results[i].status === "fulfilled" ? results[i].value : fallback;
   const status = val(0, { last_poll: null, points: [] });
@@ -420,7 +467,8 @@ function renderIncidents() {
 
 function renderPredictions() {
   const rows = filterPort(cache.predictions || []);
-  const el = document.getElementById("panel-predictions");
+  const el = document.getElementById("predictions-content");
+  if (!el) return;
   if (!rows.length) {
     el.innerHTML = emptyMsg("Za malo danych do prognozy (poczekaj kilka cykli).");
     return;
@@ -430,10 +478,10 @@ function renderPredictions() {
       const level = p.rising ? "critical" : "ok";
       const arrow = p.rising ? "&#9650; narasta" : "&#9660; stabilnie/maleje";
       return `<div class="card level-${level}">
-        <h3>${p.point_name}${p.rising ? '<span class="badge rising">narasta</span>' : ""}</h3>
+        <h3>${p.point_name}${p.rising ? '<span class="badge rising">narasta</span>' : ""}${p.ml_active ? '<span class="badge info">ML</span>' : ""}</h3>
         <div class="meta">${p.road || ""} &middot; ${p.samples} probek</div>
         <div class="body">
-          Teraz: ${fmtPct(p.current_ratio)} &rarr; za ${p.horizon_minutes} min: <b>${fmtPct(p.predicted_ratio)}</b><br/>
+          Teraz: ${fmtPct(p.current_ratio)} &rarr; za ${p.horizon_minutes / 60}h: <b>${fmtPct(p.predicted_ratio)}</b><br/>
           Trend: ${arrow} (${p.slope_per_10min > 0 ? "+" : ""}${(p.slope_per_10min * 100).toFixed(1)} pkt%/10 min)
         </div>
         ${cardTime("Baza:", p.ts)}

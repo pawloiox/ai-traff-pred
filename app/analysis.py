@@ -184,11 +184,10 @@ def detect_anomalies() -> List[Dict[str, Any]]:
     return anomalies
 
 
-def predict_trends() -> List[Dict[str, Any]]:
-    """Krotkoterminowa predykcja: regresja liniowa congestion ratio w czasie.
+def predict_trends(horizon_hours: int = 1) -> List[Dict[str, Any]]:
+    """Predykcja kongestii z wykorzystaniem modelu ML (XGBoost) na wybrany horyzont.
 
-    Zwraca prognoze ratio na horyzont prediction_horizon_minutes oraz flage
-    'rising' gdy trend narasta powyzej progu.
+    Gdy model ML nie jest gotowy, uzywa regresji liniowej z krotszym horyzontem jako fallback.
     """
     predictions: List[Dict[str, Any]] = []
     latest = {r["point_id"]: r for r in storage.latest_measurements()}
@@ -215,16 +214,34 @@ def predict_trends() -> List[Dict[str, Any]]:
 
         slope_per_10min = slope * 10.0
 
-        # --- Augmentacja zywymi zrodlami (backend, schemat wyjscia zachowany) ---
-        # Presja portu (zywe statki + Codeco) jako narastajacy popyt na ciezarowki.
-        pp = portdata.port_pressure_for_point(point_id, settings.pred_port_lookahead_h)
-        port_term = settings.pred_port_weight * pp["total"]
-        # TRISTAR (Gdynia): nadwyzka natezenia ponad typowe.
-        tri_load = _tristar_load_excess(point_id)
-        tri_term = settings.pred_tristar_weight * tri_load
-
-        predicted = max(0.0, min(1.0, base_pred + port_term + tri_term))
+        # --- Predykcja XGBoost lub Fallback ---
+        from . import ml, weather
+        
         current = float(ratios[-1])
+        pp = portdata.port_pressure_for_point(point_id, horizon_hours)
+        port_term = pp["total"]
+        
+        try:
+            if ml.is_model_ready():
+                w_penalty = weather.get_weather_penalty(last["port_id"])
+                predicted = ml.predict_horizon(
+                    current_ratio=current,
+                    weather_penalty=w_penalty,
+                    port_pressure=port_term,
+                    horizon_hours=horizon_hours
+                )
+            else:
+                raise ValueError("ML model not ready")
+        except ValueError:
+            # Fallback: Krotkoterminowa regresja liniowa
+            horizon_mins = horizon_hours * 60
+            base_pred = float(slope * (now_min + horizon_mins) + intercept)
+            base_pred = max(0.0, min(1.0, base_pred))
+            tri_load = _tristar_load_excess(point_id)
+            tri_term = settings.pred_tristar_weight * tri_load
+            port_weight_scaled = settings.pred_port_weight * port_term
+            predicted = max(0.0, min(1.0, base_pred + port_weight_scaled + tri_term))
+
         rising = (predicted - current >= settings.prediction_rising_slope) or (
             slope_per_10min >= settings.prediction_rising_slope
         )
@@ -238,19 +255,16 @@ def predict_trends() -> List[Dict[str, Any]]:
                 "current_ratio": round(current, 3),
                 "slope_per_10min": round(float(slope_per_10min), 4),
                 "predicted_ratio": round(predicted, 3),
-                "horizon_minutes": horizon,
+                "horizon_minutes": horizon_hours * 60,
                 "rising": bool(rising),
                 "samples": len(series),
                 "ts": last.get("ts"),
-                # Pola informacyjne (front ich nie renderuje) - rozklad wplywu zrodel:
-                "predicted_ratio_base": round(base_pred, 3),
-                "port_pressure": round(pp["total"], 3),
-                "port_pressure_ship": (pp.get("dominant_ship") or {}).get("name"),
-                "tristar_load": round(tri_load, 3),
+                "port_pressure": round(port_term, 3),
+                "ml_active": ml.is_model_ready(),
             }
         )
 
-    predictions.sort(key=lambda x: x["slope_per_10min"], reverse=True)
+    predictions.sort(key=lambda x: x["predicted_ratio"], reverse=True)
     return predictions
 
 

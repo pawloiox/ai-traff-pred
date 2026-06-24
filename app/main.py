@@ -97,8 +97,17 @@ def api_anomalies():
 
 
 @app.get("/api/predictions")
-def api_predictions():
-    return {"predictions": analysis.predict_trends()}
+def api_predictions(horizon: int = Query(1, ge=1, le=12)):
+    """Krotkoterminowe predykcje i powiadomienia o zatorach dla wybranego horyzontu (1-12h)."""
+    return {"predictions": analysis.predict_trends(horizon_hours=horizon)}
+
+
+@app.post("/api/ml/train")
+def api_ml_train():
+    """Wymusza reczne wytrenowanie modelu XGBoost na podstawie historii SQLite."""
+    from . import ml
+    result = ml.train_model()
+    return result
 
 
 @app.get("/api/reports")
