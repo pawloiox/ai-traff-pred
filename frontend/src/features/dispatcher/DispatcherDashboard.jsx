@@ -221,7 +221,81 @@ function BottlenecksPanel({ items }) {
   );
 }
 
+const MAG_LABELS = ["Nieznane", "Małe", "Umiarkowane", "Duże", "Nieprzejezdne"];
+const MAG_COLORS = [LEVEL.unknown, LEVEL.ok, LEVEL.warning, LEVEL.critical, "#7C3AED"];
+
+function IncidentsPanel({ items }) {
+  if (!items.length)
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-400">
+        Brak zgłoszonych incydentów — ruch bez zakłóceń.
+      </div>
+    );
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-500">
+        Aktywne zdarzenia drogowe z danych TomTom ({items.length}).
+      </p>
+      {items.map((inc, i) => {
+        const mag = Math.min(inc.magnitude ?? 0, 4);
+        const color = MAG_COLORS[mag];
+        const delayMin = inc.delay_seconds ? Math.round(inc.delay_seconds / 60) : null;
+        return (
+          <div
+            key={inc.incident_id || i}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            style={{ borderLeft: `4px solid ${color}` }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TriangleAlert className="h-4 w-4 shrink-0" style={{ color }} />
+                <h3 className="text-sm font-bold text-slate-900">
+                  {inc.category_label || "Incydent"}
+                </h3>
+              </div>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                style={{ backgroundColor: `${color}1A`, color }}
+              >
+                {MAG_LABELS[mag]}
+              </span>
+            </div>
+
+            {(inc.from_name || inc.to_name) && (
+              <div className="mt-1.5 text-xs text-slate-500">
+                {inc.from_name || ""}
+                {inc.to_name ? ` → ${inc.to_name}` : ""}
+              </div>
+            )}
+
+            {inc.description && (
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                {inc.description}
+              </p>
+            )}
+
+            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+              {delayMin != null ? (
+                <span className="text-xs font-semibold" style={{ color }}>
+                  ⏱ {delayMin} min opóźnienia
+                </span>
+              ) : (
+                <span className="text-xs text-slate-300">brak danych o opóźnieniu</span>
+              )}
+              <span className="font-mono text-[10px] text-slate-400">
+                {fmtTime(inc.snapshot_ts)}{" "}
+                <span className="font-normal">{agoLabel(inc.snapshot_ts)}</span>
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ReportsPanel({ reports, onGenerate, generating }) {
+
   return (
     <div className="space-y-4">
       <button onClick={onGenerate} disabled={generating}
@@ -412,7 +486,7 @@ function AnalyticsPanel({ riskScores, weather, portNames, history, dailyPattern 
 
 /* ============================ dashboard ============================ */
 
-const TABS = ["Stan", "Wąskie gardła", "Raporty", "Predykcja", "Analityka"];
+const TABS = ["Stan", "Wąskie gardła", "Incydenty", "Raporty", "Predykcja", "Analityka"];
 
 export default function DispatcherDashboard() {
   const [tab, setTab] = useState("Stan");
@@ -427,6 +501,7 @@ export default function DispatcherDashboard() {
   const [predictions, setPredictions] = useState([]);
   const [bottlenecks, setBottlenecks] = useState([]);
   const [reports, setReports] = useState([]);
+  const [incidentsList, setIncidentsList] = useState([]);
   const [weather, setWeather] = useState([]);
   const [history, setHistory] = useState([]);
   const [dailyPattern, setDailyPattern] = useState([]);
@@ -498,6 +573,7 @@ export default function DispatcherDashboard() {
       getJSON(`/api/predictions?horizon=${h}`),
       getJSON("/api/bottlenecks?window=60&limit=15"),
       getJSON("/api/reports?limit=12"),
+      getJSON("/api/incidents"),
       getJSON("/api/weather"),
       getJSON("/api/analytics/congestion-history?days=7"),
       getJSON("/api/risk-scores"),
@@ -508,9 +584,10 @@ export default function DispatcherDashboard() {
     setPredictions(v(1, { predictions: [] }).predictions);
     setBottlenecks(v(2, { bottlenecks: [] }).bottlenecks);
     setReports(v(3, { reports: [] }).reports);
-    setWeather(v(4, { weather: [] }).weather);
-    setHistory(v(5, { history: [] }).history);
-    setRiskScores(v(6, { risk_scores: [] }).risk_scores);
+    setIncidentsList(v(4, { incidents: [] }).incidents);
+    setWeather(v(5, { weather: [] }).weather);
+    setHistory(v(6, { history: [] }).history);
+    setRiskScores(v(7, { risk_scores: [] }).risk_scores);
     updateMarkers(st.points);
   }
 
@@ -582,6 +659,7 @@ export default function DispatcherDashboard() {
   const statusPts = status.points.filter((p) => portPointIds.has(p.point_id));
   const predPts = predictions.filter((p) => portPointIds.has(p.point_id));
   const bottlePts = bottlenecks.filter((b) => !b.point_id || portPointIds.has(b.point_id));
+  const incidentPts = incidentsList.filter((inc) => inc.port_id === selectedPort?.id);
   const riskPts = riskScores.filter((r) => r.port_id === selectedPort?.id);
   const portNames = useMemo(() => Object.fromEntries(ports.map((p) => [p.id, p.name])), [ports]);
   const mlActive = predictions[0]?.ml_active ?? false;
@@ -675,6 +753,7 @@ export default function DispatcherDashboard() {
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {tab === "Stan" && <StanPanel points={statusPts} lastPoll={status.last_poll} />}
             {tab === "Wąskie gardła" && <BottlenecksPanel items={bottlePts} />}
+            {tab === "Incydenty" && <IncidentsPanel items={incidentPts} />}
             {tab === "Raporty" && <ReportsPanel reports={reports} onGenerate={generateReport} generating={generating} />}
             {tab === "Predykcja" && <PredictionPanel predictions={predPts} horizon={horizon} setHorizon={setHorizon} mlActive={mlActive} />}
             {tab === "Analityka" && <AnalyticsPanel riskScores={riskPts} weather={weather} portNames={portNames} history={historyData} dailyPattern={dailyPattern} />}
