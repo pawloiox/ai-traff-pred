@@ -329,6 +329,7 @@ async function refreshAll() {
     "Ostatni pomiar: " + fmtTime(status.last_poll);
 
   updateMarkers(status.points);
+  notifyTrafficChanges(status.points, cache.incidents);
   renderAll();
 }
 
@@ -360,6 +361,87 @@ function updateMarkers(points) {
 function filterPort(rows) {
   if (!state.selectedPort) return rows;
   return rows.filter((r) => r.port_id === state.selectedPort.id);
+}
+
+/* ============ Toast: nowe wydarzenia / zmiany w ruchu ============ */
+const _toast = { seenIncidents: new Set(), prevLevel: {}, prevClosure: {}, firstRun: true };
+
+function ensureToastContainer() {
+  let c = document.getElementById("toast-container");
+  if (!c) {
+    c = document.createElement("div");
+    c.id = "toast-container";
+    document.body.appendChild(c);
+  }
+  return c;
+}
+
+function showToast({ title, body = "", level = "info", timeout = 6000 }) {
+  const container = ensureToastContainer();
+  const t = document.createElement("div");
+  t.className = `toast toast-${level}`;
+  t.innerHTML =
+    `<div class="toast-content">` +
+      `<div class="toast-title"></div>` +
+      (body ? `<div class="toast-body"></div>` : "") +
+    `</div>` +
+    `<button class="toast-close" type="button" aria-label="Zamknij">&times;</button>`;
+  t.querySelector(".toast-title").textContent = title;
+  if (body) t.querySelector(".toast-body").textContent = body;
+
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    t.classList.add("toast-hide");
+    setTimeout(() => t.remove(), 400);
+  };
+  t.querySelector(".toast-close").addEventListener("click", remove);
+  container.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("toast-show"));
+  if (timeout) setTimeout(remove, timeout);
+
+  // Nie zalewamy ekranu: max 4 widoczne
+  while (container.children.length > 4) container.firstChild.remove();
+}
+
+function incidentKey(inc) {
+  return inc.id || [inc.category_label, inc.from_name, inc.to_name, inc.description].join("|");
+}
+
+function notifyTrafficChanges(points, incidents) {
+  // 1) Zmiany stanu punktow pomiarowych
+  (points || []).forEach((p) => {
+    const lvl = p.level || "unknown";
+    const prev = _toast.prevLevel[p.point_id];
+    const wasClosed = _toast.prevClosure[p.point_id];
+    if (!_toast.firstRun) {
+      if (p.road_closure && !wasClosed) {
+        showToast({ level: "critical", title: `Zamknięcie drogi: ${p.point_name}`, body: p.road || "" });
+      } else if (lvl === "critical" && prev !== "critical") {
+        showToast({ level: "critical", title: `Zator: ${p.point_name}`, body: `${p.road || ""} · kongestia ${fmtPct(p.congestion_ratio)}` });
+      } else if (lvl === "warning" && prev !== "warning" && prev !== "critical") {
+        showToast({ level: "warning", title: `Zwolnienie: ${p.point_name}`, body: `${p.road || ""} · ${fmtPct(p.congestion_ratio)}` });
+      } else if (lvl === "ok" && (prev === "critical" || prev === "warning")) {
+        showToast({ level: "ok", title: `Ruch udrożniony: ${p.point_name}`, body: p.road || "" });
+      }
+    }
+    _toast.prevLevel[p.point_id] = lvl;
+    _toast.prevClosure[p.point_id] = !!p.road_closure;
+  });
+
+  // 2) Nowe incydenty TomTom
+  (incidents || []).forEach((inc) => {
+    const key = incidentKey(inc);
+    const isNew = !_toast.seenIncidents.has(key);
+    _toast.seenIncidents.add(key);
+    if (isNew && !_toast.firstRun) {
+      const where = inc.from_name ? ` · ${inc.from_name}` : "";
+      showToast({ level: "warning", title: inc.category_label || "Nowy incydent", body: (inc.description || "") + where });
+    }
+  });
+
+  _toast.firstRun = false; // pierwszy zaciag tylko inicjalizuje stan (bez zalewania toastami)
 }
 
 function renderAll() {
