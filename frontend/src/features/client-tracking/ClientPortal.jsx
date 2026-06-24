@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 /**
- * PortPulse — PORTAL KLIENTA B2B
+ * PulsPort — PORTAL KLIENTA B2B
  * -------------------------------------------------------------
  * Enterprise SaaS supply-chain visibility (styl Flexport): jasny
  * motyw, akcent indygo, KPI bento + tabela sledzenia przesylek.
@@ -151,7 +151,7 @@ export default function ClientPortal() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: INDIGO }} />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INDIGO }} />
             </span>
-            <span className="text-lg font-extrabold tracking-tight">Port<span className="text-slate-400">Pulse</span></span>
+            <span className="text-lg font-extrabold tracking-tight">Puls<span className="text-slate-400">Port</span></span>
           </div>
 
           <div className="relative mx-2 hidden flex-1 sm:block">
@@ -248,7 +248,7 @@ export default function ClientPortal() {
         </section>
 
         <footer className="mt-8 text-center text-xs text-slate-400">
-          PortPulse · widoczność łańcucha dostaw w czasie rzeczywistym
+          PulsPort · widoczność łańcucha dostaw w czasie rzeczywistym
         </footer>
       </main>
     </div>

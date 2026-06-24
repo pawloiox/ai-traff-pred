@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 /**
- * PortPulse — Control Tower: widok FIRMA / DYSPOZYTOR (żywe dane)
+ * PulsPort — Control Tower: widok FIRMA / DYSPOZYTOR (żywe dane)
  * -------------------------------------------------------------
  * Prawdziwa mapa Leaflet + kafelki TomTom (proxy /api) i panel
  * operacyjny: Stan / Wąskie gardła / Raporty / Predykcja / Analityka
@@ -605,7 +605,7 @@ export default function DispatcherDashboard() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: CYAN_E }} />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CYAN_E }} />
           </span>
-          <span className="text-lg font-extrabold tracking-tight">Port<span className="text-slate-400">Pulse</span></span>
+          <span className="text-lg font-extrabold tracking-tight">Puls<span className="text-slate-400">Port</span></span>
         </div>
 
         <div className="flex items-center gap-3">

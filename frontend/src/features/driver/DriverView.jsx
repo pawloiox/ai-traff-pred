@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 /**
- * PortPulse — KIEROWCA TERMINALA (mobilny HUD)
+ * PulsPort — KIEROWCA TERMINALA (mobilny HUD)
  * -------------------------------------------------------------
  * In-cab HUD: gigantyczna typografia, wielkie touch-targety,
  * sygnalizacja swietlna. Kierowca ustawia OBSZAR (port) i CEL
@@ -136,7 +136,7 @@ export default function DriverView() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
             </span>
-            <span className="text-base font-extrabold tracking-tight">Port<span className="text-slate-400">Pulse</span></span>
+            <span className="text-base font-extrabold tracking-tight">Puls<span className="text-slate-400">Port</span></span>
           </div>
           <div className="text-right">
             <div className="text-xs font-bold text-slate-700">{selectedPort?.name || "—"}</div>

@@ -261,5 +261,11 @@ def dashboard():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/app")
+def spa():
+    # Zbudowane SPA (React): widoki Kierowcy (#/kierowca) i Klienta (#/klient).
+    return FileResponse(STATIC_DIR / "spa" / "index.html")
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

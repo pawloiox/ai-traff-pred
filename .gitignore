@@ -14,3 +14,5 @@ data/
 .idea/
 .vscode/
 firebase_credentials.json
+# Build SPA kopiuje duze zdjecie hero (duplikat app/static/hero-port.jpg) - nie commitujemy
+app/static/spa/hero-port.jpg

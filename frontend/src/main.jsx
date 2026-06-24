@@ -6,17 +6,17 @@ import DispatcherDashboard from "./features/dispatcher/DispatcherDashboard.jsx";
 import DriverView from "./features/driver/DriverView.jsx";
 import ClientPortal from "./features/client-tracking/ClientPortal.jsx";
 
-// Prosty przelacznik podgladu po hashu:
-//   #/landing     -> strona tytulowa
-//   #/dyspozytor  -> dashboard firmy
+// Przelacznik widoku po hashu (SPA serwowane przez FastAPI pod /app):
 //   #/kierowca    -> mobilny HUD kierowcy
-//   (domyslnie)   -> portal klienta B2B
+//   #/klient      -> portal klienta B2B
+//   #/dyspozytor  -> podglad dashboardu firmy (realnie: Vanilla /dyspozytor)
+//   (domyslnie)   -> strona tytulowa (wybor roli)
 const h = window.location.hash;
 const view =
-  h === "#/landing" ? <LandingPage /> :
-  h === "#/dyspozytor" ? <DispatcherDashboard /> :
   h === "#/kierowca" ? <DriverView /> :
-  <ClientPortal />;
+  h === "#/klient" ? <ClientPortal /> :
+  h === "#/dyspozytor" ? <DispatcherDashboard /> :
+  <LandingPage />;
 
 window.addEventListener("hashchange", () => window.location.reload());
 
