@@ -26,22 +26,22 @@ const HERO_FALLBACK =
 const CARDS = [
   {
     id: "dispatcher",
-    eyebrow: "Firma / Dyspozytor",
-    title: "Centrum orkiestracji ruchu",
+    eyebrow: "Dyspozytor",
+    title: "Panel dyspozytora portu",
     description:
-      "Sterowanie w czasie rzeczywistym, orkiestracja bram terminalowych i predykcje wąskich gardeł oparte o AI.",
-    cta: "Otwórz centrum",
+      "Monitoruj ruch ciężarówek, przewiduj zatory i zarządzaj bramami terminala w czasie rzeczywistym.",
+    cta: "Otwórz panel",
     Icon: LayoutDashboard,
     color: "#1593C9", // morski błękit (statek)
     branch: "M600 40 C600 110 200 90 200 150",
   },
   {
     id: "driver",
-    eyebrow: "Kierowca terminala",
-    title: "Nawigacja i status slotu",
+    eyebrow: "Kierowca / Przewoźnik",
+    title: "Asystent kierowcy",
     description:
-      "Mobilny asystent dla kierowców: nawigacja, dostępność slotów i miejsca w strefach buforowych.",
-    cta: "Uruchom aplikację",
+      "Sprawdź wyznaczoną bramę, godzinę wjazdu, status slotu i najlepszą trasę do terminala.",
+    cta: "Uruchom asystenta",
     Icon: Truck,
     color: "#C0432E", // rdzawa czerwień (dźwigi)
     branch: "M600 40 L600 150",
@@ -49,9 +49,9 @@ const CARDS = [
   {
     id: "client",
     eyebrow: "Portal Klienta B2B",
-    title: "Widoczność łańcucha dostaw",
+    title: "Widoczność ładunku dostaw",
     description:
-      "Precyzyjne ETA kontenerów, pełna widoczność łańcucha dostaw i narzędzia zapobiegania demurrage.",
+      "Śledź kontenery, przewidywany czas odbioru oraz ryzyko opóźnień lub dodatkowych kosztów.",
     cta: "Wejdź do portalu",
     Icon: BarChart3,
     color: "#DDA017", // bursztyn (kontenery)
