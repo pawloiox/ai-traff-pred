@@ -505,9 +505,12 @@ function initFirebasePush() {
           try {
               const permission = await Notification.requestPermission();
               if (permission === "granted") {
-                  // VAPID KEY do powiadomień Web. Musisz go również skopiować z ustawień Cloud Messaging
-                  const token = await messaging.getToken({ vapidKey: "BHI26JLkWg3SJIDkyVVHVNGra9IZ-F1PmcG-i215RzkmQABlujrF4KW1FLshaLb1hzuBIWTfPeZDN1qwnM8V9OM" });
-                  // const token = await messaging.getToken(); // jeśli bez VAPID
+                  // Firebase domyślnie szuka Service Workera w roocie (/). Nasz jest w /static/
+                  // Dlatego najpierw musimy go ręcznie zarejestrować
+                  const registration = await navigator.serviceWorker.register('/static/firebase-messaging-sw.js');
+                  
+                  // Teraz prosimy o token, podając nasz zarejestrowany skrypt
+                  const token = await messaging.getToken({ serviceWorkerRegistration: registration, vapidKey: "BHI26JLkWg3SJIDkyVVHVNGra9IZ-F1PmcG-i215RzkmQABlujrF4KW1FLshaLb1hzuBIWTfPeZDN1qwnM8V9OM" }); 
                   if (token) {
                       await fetch("/api/notifications/subscribe", {
                           method: "POST",
