@@ -19,6 +19,7 @@ const state = {
   incidentsLayer: null,
   markers: {}, // point_id -> L.CircleMarker
   selectedPort: null,
+  globalReport: null, // raport globalny on-demand (nie filtrowany po porcie)
 };
 
 const LEVEL_COLORS = {
@@ -267,9 +268,10 @@ function initControls() {
         if (!res.ok) throw new Error("Blad API");
         const data = await res.json();
         
-        // Prepends the new report to the existing cache or DOM
+        // Raport globalny trzymamy osobno, by nie zostal odfiltrowany po porcie
+        // ani nadpisany przez cykliczny refreshAll().
         if (data.status === "ok" && data.report) {
-          cache.reports = [data.report, ...(cache.reports || [])];
+          state.globalReport = data.report;
           renderReports();
           alert("Raport globalny wygenerowany!");
         }
@@ -424,9 +426,11 @@ function renderBottlenecks() {
 }
 
 function renderReports() {
-  const rows = filterPort(cache.reports || []);
   const el = document.getElementById("reports-content");
   if (!el) return;
+  // Raport globalny (jesli wygenerowany) zawsze na gorze, bez filtra portu.
+  const portReports = filterPort(cache.reports || []);
+  const rows = state.globalReport ? [state.globalReport, ...portReports] : portReports;
   if (!rows.length) {
     el.innerHTML = emptyMsg("Brak raportow operacyjnych - ruch w normie.");
     return;
@@ -435,19 +439,32 @@ function renderReports() {
     .map((r) => {
       const level = r.level || "unknown";
       const badges =
+        (level === "info" ? '<span class="badge info">globalny</span>' : "") +
         (r.rising ? '<span class="badge rising">narasta</span>' : "") +
         (r.is_anomaly ? '<span class="badge anomaly">anomalia</span>' : "");
+
+      let body;
+      if (r.cause || r.recommendation) {
+        body =
+          `<b>Przyczyna:</b> ${r.cause || "b.d."}<br/>` +
+          `<b>Rekomendacja:</b> ${r.recommendation || "b.d."}` +
+          (r.prediction ? `<br/><b>Prognoza (${r.prediction.horizon_minutes} min):</b> ${fmtPct(r.prediction.predicted_ratio)}` : "");
+      } else {
+        body = r.summary || "";
+      }
+
+      const showPdf = r.point_id && r.port_id !== "GLOBAL";
+      const pdfLink = showPdf
+        ? `<a href="/api/reports/${r.point_id}/pdf" target="_blank" style="padding: 4px 10px; background-color: #2ea043; color: white; text-decoration: none; border-radius: 5px; font-size: 12px; font-weight: bold; margin-bottom: 5px; margin-right: 5px;">Pobierz PDF</a>`
+        : "";
+
       return `<div class="card level-${level}">
-        <h3>${r.headline}${badges}</h3>
-        <div class="meta">${r.road || ""}</div>
-        <div class="body">
-          <b>Przyczyna:</b> ${r.cause}<br/>
-          <b>Rekomendacja:</b> ${r.recommendation}
-          ${r.prediction ? `<br/><b>Prognoza (${r.prediction.horizon_minutes} min):</b> ${fmtPct(r.prediction.predicted_ratio)}` : ""}
-        </div>
+        <h3>${r.headline || r.point_name || "Raport"}${badges}</h3>
+        ${r.road ? `<div class="meta">${r.road}</div>` : ""}
+        <div class="body">${body}</div>
         <div style="display: flex; justify-content: space-between; align-items: flex-end;">
           ${cardTime("Raport:", r.ts)}
-          <a href="/api/reports/${r.point_id}/pdf" target="_blank" style="padding: 4px 10px; background-color: #2ea043; color: white; text-decoration: none; border-radius: 5px; font-size: 12px; font-weight: bold; margin-bottom: 5px; margin-right: 5px;">Pobierz PDF</a>
+          ${pdfLink}
         </div>
       </div>`;
     })
