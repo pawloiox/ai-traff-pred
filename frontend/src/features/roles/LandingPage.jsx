@@ -302,6 +302,10 @@ export default function LandingPage() {
                   {/* przycisk — solidny navy, ultra-gładki hover */}
                   <button
                     type="button"
+                    onClick={() => {
+                      window.location.hash =
+                        id === "driver" ? "#/kierowca" : id === "client" ? "#/klient" : "#/dyspozytor";
+                    }}
                     className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0E3A76] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-in-out hover:bg-[#0A2A5C] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0E3A76] focus-visible:ring-offset-2"
                   >
                     {cta}
