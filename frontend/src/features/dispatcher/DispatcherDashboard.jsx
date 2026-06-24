@@ -308,9 +308,22 @@ function ReportsPanel({ reports, onGenerate, generating }) {
         <div key={(r.point_id || "") + i} className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900">{r.point_name || r.point_id || "Raport"}</h3>
-            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: `${CYAN}1A`, color: CYAN }}>LLM</span>
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: `${CYAN}1A`, color: CYAN }}>{r.source === "rule" ? "AUTO" : "LLM"}</span>
           </div>
-          <p className="mt-2 leading-relaxed text-slate-500">{r.summary || r.cause || r.text || r.description || "—"}</p>
+          <p className="mt-2 leading-relaxed text-slate-600">{r.summary || r.cause || r.text || r.description || "—"}</p>
+          
+          {/* WNIOSEK DLA KIEROWCÓW CIĘŻARÓWEK */}
+          {r.driver_action && (
+            <div className="mt-3 rounded-xl border-l-4 p-3" style={{ borderColor: NAVY, backgroundColor: `${NAVY}0A` }}>
+              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: NAVY }}>
+                🚛 Wniosek — działanie kierowców
+              </div>
+              <p className="text-xs font-semibold leading-relaxed" style={{ color: NAVY }}>
+                {r.driver_action}
+              </p>
+            </div>
+          )}
+
           {r.point_id && (
             <a href={`/api/reports/${r.point_id}/pdf`} target="_blank" rel="noreferrer"
               className="mt-3 inline-block rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white">Pobierz PDF</a>

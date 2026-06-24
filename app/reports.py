@@ -153,25 +153,25 @@ def _cause_text(situation: Dict[str, Any]) -> str:
     weather_info = ""
     w_data = situation.get("weather")
     if w_data and w_data.get("is_raining"):
-        weather_info = " (Dodatkowo: ulewny deszcz pogarsza sytuację)"
+        weather_info = " Ponadto: niekorzystne warunki atmosferyczne (opady deszczu) dodatkowo pogarszają warunki drogowe."
         
     temporal_info = ""
     t_data = situation.get("temporal")
     if t_data and t_data.get("is_rush_hour"):
-        temporal_info = " (Dodatkowo: obecne godziny szczytu)"
+        temporal_info = " Ponadto: trwa okres szczytowego natężenia ruchu."
 
-    base_cause = "brak zgloszonego incydentu - prawdopodobnie ruch godziny szczytu / natezenie pojazdow"
+    base_cause = "Nie odnotowano zgłoszonych incydentów drogowych — utrudnienia wynikają z naturalnego natężenia ruchu w bieżącym okresie."
     if dom == "port_pressure" and ship.get("name"):
         base_cause = (
-            f"dominuje presja portu - statek {ship['name']} (DWT {round(ship['dwt'])}) "
-            f"cumuje wkrotce, spodziewana fala ciezarowek z terminala"
+            f"Dominujący czynnik: presja ruchu portowego. Statek {ship['name']} (DWT {round(ship['dwt'])}) "
+            f"zbliża się do cumowania, co generuje zwiększony ruch ciężarówek z terminala."
         )
     elif incident:
         base_cause = _incident_text(incident)
     elif dom == "trend":
-        base_cause = "dominuje narastajaca dynamika ruchu (trend wzrostowy w ostatnich pomiarach)"
+        base_cause = "Dominujący czynnik: narastająca dynamika ruchu drogowego (trend wzrostowy odnotowany w ostatnich pomiarach)."
     elif dom == "baseline":
-        base_cause = "dominuje typowe natezenie ruchu o tej porze (wzorzec godziny i dnia tygodnia)"
+        base_cause = "Dominujący czynnik: typowe natężenie ruchu charakterystyczne dla bieżącej pory dnia i dnia tygodnia."
 
     return base_cause + weather_info + temporal_info
 
@@ -180,17 +180,59 @@ def _recommendation(situation: Dict[str, Any], has_incident: bool) -> str:
     road = situation.get("road") or situation["point_name"]
     if situation.get("level") == "critical" or situation.get("road_closure"):
         base = (
-            f"wstrzymaj/rozloz w czasie wyjazdy ciezarowek przez {road}; "
-            "rozwaz przekierowanie na trasy alternatywne i poinformuj brame terminala"
+            f"Zaleca się wstrzymanie lub rozłożenie w czasie wyjazdów ciężarówek przez {road}. "
+            "Należy rozważyć przekierowanie na trasy alternatywne oraz poinformować bramę terminala o utrudnieniach."
         )
     else:
         base = (
-            f"monitoruj {road}, przygotuj bufor czasowy dla slotow bramowych; "
-            "rozwaz wczesniejsze awizacje"
+            f"Zaleca się bieżące monitorowanie sytuacji na {road} oraz przygotowanie buforu czasowego dla slotów bramowych. "
+            "Rekomendowane jest rozważenie wcześniejszych awizacji."
         )
     if has_incident:
-        base += "; skoordynuj sie z zarzadca ruchu miasta w sprawie incydentu"
+        base += " Dodatkowo zaleca się koordynację z zarządcą ruchu miejskiego w sprawie zgłoszonego incydentu."
     return base
+
+
+def _driver_action(situation: Dict[str, Any]) -> str:
+    """Generuje wniosek końcowy co do działania kierowców ciężarówek."""
+    level = situation["level"]
+    rising = situation["rising"]
+    road = situation.get("road") or situation["point_name"]
+    has_closure = situation.get("road_closure")
+
+    if has_closure:
+        return (
+            f"WNIOSEK: Droga {road} jest zamknięta. Kierowcy ciężarówek powinni bezwzględnie "
+            "wstrzymać wyjazdy na ten odcinek i skorzystać z wyznaczonych tras alternatywnych. "
+            "Przed ponownym wyjazdem należy potwierdzić otwarcie trasy z dyspozytorem."
+        )
+    if level == "critical":
+        return (
+            f"WNIOSEK: Na odcinku {road} występuje silny zator. Kierowcy ciężarówek powinni "
+            "wstrzymać planowane wyjazdy do czasu ustabilizowania się sytuacji drogowej. "
+            "W przypadku konieczności przejazdu, zalecane jest skorzystanie z tras alternatywnych."
+        )
+    if level == "warning" and rising:
+        return (
+            f"WNIOSEK: Na odcinku {road} odnotowano narastające utrudnienia. Kierowcy ciężarówek "
+            "powinni zachować wzmożoną ostrożność i uwzględnić dodatkowy czas przejazdu. "
+            "Rekomendowane jest śledzenie bieżących komunikatów dyspozytorskich."
+        )
+    if level == "warning":
+        return (
+            f"WNIOSEK: Na odcinku {road} występuje umiarkowane zwolnienie ruchu. Kierowcy ciężarówek "
+            "mogą kontynuować planowane przejazdy z zachowaniem ostrożności. "
+            "Zalecane jest uwzględnienie dodatkowego buforu czasowego."
+        )
+    if situation.get("is_anomaly"):
+        return (
+            f"WNIOSEK: Na odcinku {road} wykryto nietypowe natężenie ruchu. Kierowcy ciężarówek "
+            "powinni zachować ostrożność i być przygotowani na ewentualne opóźnienia."
+        )
+    return (
+        f"WNIOSEK: Sytuacja na odcinku {road} nie wymaga szczególnych działań. "
+        "Kierowcy ciężarówek mogą kontynuować planowane przejazdy zgodnie z harmonogramem."
+    )
 
 
 def _rule_based_narrative(situation: Dict[str, Any]) -> Dict[str, str]:
@@ -201,34 +243,36 @@ def _rule_based_narrative(situation: Dict[str, Any]) -> Dict[str, str]:
     if level == "critical":
         headline = f"Silny zator na {name}"
     elif rising:
-        headline = f"Korek narasta na {name}"
+        headline = f"Narastające utrudnienia — {name}"
     elif situation["is_anomaly"]:
-        headline = f"Nietypowa kongestia na {name}"
+        headline = f"Nietypowa kongestia — {name}"
     else:
         headline = f"Zwolniony ruch na {name}"
 
     cause = _cause_text(situation)
     recommendation = _recommendation(situation, situation.get("linked_incident") is not None)
+    driver_act = _driver_action(situation)
 
     pred = situation.get("prediction")
     trend_txt = ""
     if pred:
-        arrow = "rosnaca" if pred["rising"] else "stabilna/malejaca"
+        arrow = "rosnąca" if pred["rising"] else "stabilna lub malejąca"
         trend_txt = (
-            f" Tendencja {arrow}; prognoza na {pred['horizon_minutes']} min: "
-            f"{round(pred['predicted_ratio'] * 100)}% kongestii."
+            f" Prognozowana tendencja: {arrow}. Przewidywany poziom kongestii w horyzoncie "
+            f"{pred['horizon_minutes']} min wynosi {round(pred['predicted_ratio'] * 100)}%."
         )
 
     summary = (
-        f"{headline} ({round(situation['avg_ratio'] * 100)}% sredniej kongestii w ostatniej godzinie, "
-        f"max {round(situation['max_ratio'] * 100)}%). "
-        f"Prawdopodobna przyczyna: {cause}. "
-        f"Rekomendacja: {recommendation}.{trend_txt}"
+        f"{headline}. Średni poziom kongestii w ostatniej godzinie: {round(situation['avg_ratio'] * 100)}% "
+        f"(wartość szczytowa: {round(situation['max_ratio'] * 100)}%). "
+        f"Zidentyfikowana przyczyna: {cause} "
+        f"Rekomendacja operacyjna: {recommendation}{trend_txt}"
     )
     return {
         "headline": headline,
         "cause": cause,
         "recommendation": recommendation,
+        "driver_action": driver_act,
         "summary": summary,
     }
 
@@ -248,6 +292,7 @@ def _assemble(situation: Dict[str, Any], narrative: Dict[str, str], source: str,
         "headline": narrative.get("headline") or "",
         "cause": narrative.get("cause") or "",
         "recommendation": narrative.get("recommendation") or "",
+        "driver_action": narrative.get("driver_action") or "",
         "linked_incident": situation.get("linked_incident"),
         "prediction": situation.get("prediction"),
         "cpi": situation.get("cpi"),

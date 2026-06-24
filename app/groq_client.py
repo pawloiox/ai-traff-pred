@@ -20,38 +20,59 @@ logger = logging.getLogger("port_traffic_pulse.groq")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 _FIELDS_DESC = (
-    '- "headline": max 5 slow\n'
-    '- "cause": przyczyna utrudnienia (1 krotkie zdanie)\n'
-    '- "recommendation": rekomendacja dla dyspozytora (1 krotkie zdanie)\n'
-    '- "summary": krotkie podsumowanie (max 2 zdania)\n'
+    '- "headline": zwiezly naglowek raportu (max 5 slow)\n'
+    '- "cause": formalna przyczyna utrudnienia (1 pelne zdanie w stylu oficjalnym)\n'
+    '- "recommendation": rekomendacja operacyjna dla dyspozytora terminala (1 pelne zdanie)\n'
+    '- "driver_action": WNIOSEK KONCOWY — jednoznaczna dyrektywa dla kierowcow ciezarowek: '
+    'co powinni zrobic (np. wstrzymac wyjazd, skorzystac z trasy alternatywnej, '
+    'zachowac ostroznosc, kontynuowac planowany przejazd). Musi byc konkretny i jednoznaczny (1-2 zdania)\n'
+    '- "summary": profesjonalne podsumowanie sytuacji (max 2 zdania, styl formalny/urzedowy)\n'
+)
+
+_FORMAL_STYLE_INSTRUCTION = (
+    "STYL RAPORTU: Uzywaj WYLACZNIE formalnego, profesjonalnego jezyka urzedowego. "
+    "Unikaj potocznych sformułowan, skrotow myslowych i nieformalnego tonu. "
+    "Raport bedzie czytany przez kadre zarzadzajaca i operatorow logistycznych. "
+    "Kazde pole musi brzmiec jak oficjalny komunikat operacyjny.\n"
 )
 
 SYSTEM_PROMPT = (
-    "Asystent centrum dowodzenia portu. "
-    "Tworzysz krotkie raporty operacyjne po polsku dla dyspozytorow.\n"
-    "Jesli pogoda=deszcz lub czas=godziny szczytu, wspomnij o tym w 'cause'.\n\n"
+    "Analityk operacyjny centrum zarzadzania ruchem portowym. "
+    "Generujesz formalne raporty operacyjne w jezyku polskim dla dyspozytorow terminala.\n"
+    + _FORMAL_STYLE_INSTRUCTION +
+    "Jesli pogoda=deszcz lub czas=godziny szczytu, uwzglednij te czynniki w polu 'cause'.\n"
+    "Pole 'driver_action' jest OBOWIAZKOWE — musi zawierac konkretny wniosek koncowy "
+    "dotyczacy dzialania kierowcow ciezarowek w kontekscie biezacej sytuacji drogowej.\n\n"
     "Zwroc WYLACZNIE obiekt JSON o polach:\n" + _FIELDS_DESC +
     "Nie dodawaj zadnego tekstu poza obiektem JSON."
 )
 
 SYSTEM_PROMPT_BATCH = (
-    "Asystent centrum dowodzenia portu. "
-    "Tworzysz krotkie raporty operacyjne po polsku dla dyspozytorow.\n"
-    "Jesli pogoda=deszcz lub czas=godziny szczytu, wspomnij o tym w 'cause'.\n\n"
+    "Analityk operacyjny centrum zarzadzania ruchem portowym. "
+    "Generujesz formalne raporty operacyjne w jezyku polskim dla dyspozytorow terminala.\n"
+    + _FORMAL_STYLE_INSTRUCTION +
+    "Jesli pogoda=deszcz lub czas=godziny szczytu, uwzglednij te czynniki w polu 'cause'.\n"
+    "Pole 'driver_action' jest OBOWIAZKOWE — musi zawierac konkretny wniosek koncowy "
+    "dotyczacy dzialania kierowcow ciezarowek.\n\n"
     "Otrzymasz liste sytuacji, kazda oznaczona polem id. Zwroc WYLACZNIE obiekt JSON "
     'w formacie: {"reports": [{"id": 0, "headline": "txt", "cause": "txt", '
-    '"recommendation": "txt", "summary": "txt"}]}.\n'
+    '"recommendation": "txt", "driver_action": "txt", "summary": "txt"}]}.\n'
     "Dla KAZDEJ sytuacji wygeneruj dokladnie jeden raport o tym samym id. Pola raportu:\n"
     + _FIELDS_DESC +
     "Nie dodawaj zadnego tekstu poza obiektem JSON."
 )
 
 SYSTEM_PROMPT_GLOBAL_ONDEMAND = (
-    "Glowny analityk portu. Napisz krotki globalny raport ruchu. "
-    "Nawet bez zatorow uspokoj dyspozytora.\n"
+    "Glowny analityk centrum zarzadzania ruchem portowym. "
+    "Sporzadz formalny, profesjonalny raport zbiorczy dotyczacy biezacej sytuacji drogowej. "
+    "Nawet przy braku zatorow raport powinien informowac o stabilnej sytuacji.\n"
+    + _FORMAL_STYLE_INSTRUCTION +
+    "Pole 'driver_action' jest OBOWIAZKOWE — musi zawierac zbiorczy wniosek koncowy "
+    "co do zalecanych dzialan dla kierowcow ciezarowek obslugujacych terminale portowe.\n\n"
     "Zwroc WYLACZNIE obiekt JSON o polach:\n"
     '- "headline": max 5 slow\n'
-    '- "summary": max 3 zdania\n'
+    '- "driver_action": wniosek koncowy dla kierowcow ciezarowek (1-2 zdania)\n'
+    '- "summary": max 3 zdania, styl formalny/urzedowy\n'
 )
 
 def _situation_to_prompt(s: Dict[str, Any]) -> str:
@@ -136,6 +157,7 @@ def _normalize_narrative(parsed: Dict[str, Any]) -> Dict[str, str]:
         "headline": str(parsed.get("headline", "")).strip(),
         "cause": str(parsed.get("cause", "")).strip(),
         "recommendation": str(parsed.get("recommendation", "")).strip(),
+        "driver_action": str(parsed.get("driver_action", "")).strip(),
         "summary": str(parsed.get("summary", "")).strip(),
     }
 
@@ -250,6 +272,7 @@ async def generate_global_report(
         parsed = json.loads(content)
         return {
             "headline": str(parsed.get("headline", "Raport Globalny")).strip(),
+            "driver_action": str(parsed.get("driver_action", "")).strip(),
             "summary": str(parsed.get("summary", "")).strip(),
             "timestamp": "Teraz"
         }
