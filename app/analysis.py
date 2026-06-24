@@ -184,11 +184,10 @@ def detect_anomalies() -> List[Dict[str, Any]]:
     return anomalies
 
 
-def predict_trends() -> List[Dict[str, Any]]:
-    """Krotkoterminowa predykcja: regresja liniowa congestion ratio w czasie.
+def predict_trends(horizon_hours: int = 1) -> List[Dict[str, Any]]:
+    """Predykcja kongestii z wykorzystaniem modelu ML (XGBoost) na wybrany horyzont.
 
-    Zwraca prognoze ratio na horyzont prediction_horizon_minutes oraz flage
-    'rising' gdy trend narasta powyzej progu.
+    Gdy model ML nie jest gotowy, uzywa regresji liniowej z krotszym horyzontem jako fallback.
     """
     predictions: List[Dict[str, Any]] = []
     latest = {r["point_id"]: r for r in storage.latest_measurements()}
@@ -215,16 +214,34 @@ def predict_trends() -> List[Dict[str, Any]]:
 
         slope_per_10min = slope * 10.0
 
-        # --- Augmentacja zywymi zrodlami (backend, schemat wyjscia zachowany) ---
-        # Presja portu (zywe statki + Codeco) jako narastajacy popyt na ciezarowki.
-        pp = portdata.port_pressure_for_point(point_id, settings.pred_port_lookahead_h)
-        port_term = settings.pred_port_weight * pp["total"]
-        # TRISTAR (Gdynia): nadwyzka natezenia ponad typowe.
-        tri_load = _tristar_load_excess(point_id)
-        tri_term = settings.pred_tristar_weight * tri_load
-
-        predicted = max(0.0, min(1.0, base_pred + port_term + tri_term))
+        # --- Predykcja XGBoost lub Fallback ---
+        from . import ml, weather
+        
         current = float(ratios[-1])
+        pp = portdata.port_pressure_for_point(point_id, horizon_hours)
+        port_term = pp["total"]
+        
+        try:
+            if ml.is_model_ready():
+                w_penalty = weather.get_weather_penalty(last["port_id"])
+                predicted = ml.predict_horizon(
+                    current_ratio=current,
+                    weather_penalty=w_penalty,
+                    port_pressure=port_term,
+                    horizon_hours=horizon_hours
+                )
+            else:
+                raise ValueError("ML model not ready")
+        except ValueError:
+            # Fallback: Krotkoterminowa regresja liniowa
+            horizon_mins = horizon_hours * 60
+            base_pred = float(slope * (now_min + horizon_mins) + intercept)
+            base_pred = max(0.0, min(1.0, base_pred))
+            tri_load = _tristar_load_excess(point_id)
+            tri_term = settings.pred_tristar_weight * tri_load
+            port_weight_scaled = settings.pred_port_weight * port_term
+            predicted = max(0.0, min(1.0, base_pred + port_weight_scaled + tri_term))
+
         rising = (predicted - current >= settings.prediction_rising_slope) or (
             slope_per_10min >= settings.prediction_rising_slope
         )
@@ -238,17 +255,142 @@ def predict_trends() -> List[Dict[str, Any]]:
                 "current_ratio": round(current, 3),
                 "slope_per_10min": round(float(slope_per_10min), 4),
                 "predicted_ratio": round(predicted, 3),
-                "horizon_minutes": horizon,
+                "horizon_minutes": horizon_hours * 60,
                 "rising": bool(rising),
                 "samples": len(series),
                 "ts": last.get("ts"),
-                # Pola informacyjne (front ich nie renderuje) - rozklad wplywu zrodel:
-                "predicted_ratio_base": round(base_pred, 3),
-                "port_pressure": round(pp["total"], 3),
-                "port_pressure_ship": (pp.get("dominant_ship") or {}).get("name"),
-                "tristar_load": round(tri_load, 3),
+                "port_pressure": round(port_term, 3),
+                "ml_active": ml.is_model_ready(),
             }
         )
 
-    predictions.sort(key=lambda x: x["slope_per_10min"], reverse=True)
+    predictions.sort(key=lambda x: x["predicted_ratio"], reverse=True)
     return predictions
+
+
+# --- Ulepszony scoring predykcji: delay_risk_score ---
+# Formula z planu rozwoju (Osoba 3):
+# delay_risk_score = (traffic_ratio_live * 0.4) + (historical_anomaly * 0.3)
+#                  + (weather_penalty * 0.1) + (port_ship_penalty * 0.1)
+#                  + (temporal_peak_penalty * 0.1)
+
+_RISK_LEVELS = [
+    (30, "low", "Jedź teraz — brak opóźnień"),
+    (60, "medium", "Zmień trasę"),
+    (80, "high", "Poczekaj w strefie buforowej"),
+    (100, "very_high", "Wysokie ryzyko opóźnienia — firma powinna powiadomić klienta"),
+]
+
+
+def _risk_level(score: float) -> dict:
+    """Mapuje score [0-100] na poziom ryzyka."""
+    for threshold, level, label in _RISK_LEVELS:
+        if score <= threshold:
+            return {"level": level, "label": label, "threshold": threshold}
+    return {"level": "very_high", "label": _RISK_LEVELS[-1][2], "threshold": 100}
+
+
+def compute_delay_risk_score(point_id: str) -> Dict[str, Any]:
+    """Oblicza delay_risk_score dla pojedynczego punktu.
+
+    Zwraca slownik z wynikiem, rozkladem na skladniki i poziomem ryzyka.
+    """
+    from . import temporal, weather
+
+    # 1. traffic_ratio_live (biezacy congestion ratio)
+    latest = storage.latest_measurements()
+    point_data = next((r for r in latest if r["point_id"] == point_id), None)
+    if point_data is None:
+        return {
+            "point_id": point_id,
+            "score": 0,
+            "risk": _risk_level(0),
+            "components": {},
+            "error": "Brak danych pomiarowych",
+        }
+
+    traffic_ratio = point_data.get("congestion_ratio") or 0.0
+
+    # 2. historical_anomaly (odchylenie od baseline)
+    baseline_window = 6 * 60  # 6h
+    series = [
+        r["congestion_ratio"]
+        for r in storage.measurements_since(
+            time.time() - baseline_window * 60, point_id=point_id, source="tomtom"
+        )
+        if r.get("congestion_ratio") is not None
+    ]
+    if len(series) >= settings.anomaly_min_samples:
+        mean = float(np.mean(series))
+        std = float(np.std(series))
+        if std > 1e-6:
+            z = (traffic_ratio - mean) / std
+            # Normalizacja z-score do [0, 1]: z >= 3 -> 1.0, z <= 0 -> 0.0
+            historical_anomaly = max(0.0, min(1.0, z / 3.0))
+        else:
+            historical_anomaly = 0.0
+    else:
+        # Brak baseline: uzywamy samego ratio jako proxy
+        historical_anomaly = traffic_ratio
+
+    # 3. weather_penalty (z modulu pogodowego)
+    port_id = point_data.get("port_id", "")
+    weather_penalty = weather.get_weather_penalty(port_id)
+
+    # 4. port_ship_penalty (presja portu)
+    pp = portdata.port_pressure_for_point(point_id, settings.pred_port_lookahead_h)
+    port_ship_penalty = float(pp["total"])
+
+    # 5. temporal_peak_penalty
+    tf = temporal.temporal_features()
+    temporal_peak_penalty = tf["temporal_peak_penalty"]
+
+    # Formula z PDF
+    raw_score = (
+        traffic_ratio * 0.4
+        + historical_anomaly * 0.3
+        + weather_penalty * 0.1
+        + port_ship_penalty * 0.1
+        + temporal_peak_penalty * 0.1
+    )
+
+    # Skalowanie do [0, 100]
+    score = round(min(100.0, max(0.0, raw_score * 100)), 1)
+    risk = _risk_level(score)
+
+    return {
+        "point_id": point_id,
+        "point_name": point_data.get("point_name", ""),
+        "port_id": port_id,
+        "road": point_data.get("road", ""),
+        "score": score,
+        "risk": risk,
+        "components": {
+            "traffic_ratio_live": round(traffic_ratio, 3),
+            "historical_anomaly": round(historical_anomaly, 3),
+            "weather_penalty": round(weather_penalty, 3),
+            "port_ship_penalty": round(port_ship_penalty, 3),
+            "temporal_peak_penalty": round(temporal_peak_penalty, 3),
+        },
+        "temporal": {
+            "is_rush_hour": tf["is_rush_hour"],
+            "is_weekend": tf["is_weekend"],
+            "is_holiday": tf["is_holiday"],
+            "hour": tf["hour"],
+            "day_of_week": tf["day_of_week"],
+        },
+        "ts": point_data.get("ts"),
+    }
+
+
+def delay_risk_all() -> List[Dict[str, Any]]:
+    """Oblicza delay_risk_score dla wszystkich punktow.
+
+    Zwraca liste posortowana malejaco po score.
+    """
+    latest = storage.latest_measurements()
+    point_ids = [r["point_id"] for r in latest]
+    results = [compute_delay_risk_score(pid) for pid in point_ids]
+    results.sort(key=lambda x: x.get("score", 0), reverse=True)
+    return results
+

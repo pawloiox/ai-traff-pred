@@ -11,7 +11,7 @@ from typing import List
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from . import portcalls_live, tristar, zditm
+from . import portcalls_live, tristar, weather, zditm
 from .config import settings
 from .ports import PORTS, all_points
 from .storage import storage
@@ -24,6 +24,7 @@ _scheduler: AsyncIOScheduler | None = None
 _last_poll_ts: float | None = None
 _last_tristar_ts: float | None = None
 _last_zditm_ts: float | None = None
+_last_weather_ts: float | None = None
 
 
 def get_client() -> TomTomClient:
@@ -43,6 +44,10 @@ def last_tristar_ts() -> float | None:
 
 def last_zditm_ts() -> float | None:
     return _last_zditm_ts
+
+
+def last_weather_ts() -> float | None:
+    return _last_weather_ts
 
 
 async def _poll_flows() -> None:
@@ -161,6 +166,24 @@ async def poll_portcalls() -> None:
     logger.info("PortCalls live: %d statkow w cache", n)
 
 
+async def poll_weather() -> None:
+    """Pobiera pogode z Open-Meteo dla wszystkich portow i zapisuje do cache."""
+    global _last_weather_ts
+    import time as _time
+
+    ts = _time.time()
+    try:
+        results = await weather.fetch_all_ports()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Weather polling blad: %s", exc)
+        return
+    for row in results:
+        row["ts"] = ts
+        storage.insert_weather(row)
+    _last_weather_ts = ts
+    logger.info("Weather: zapisano pogode dla %d portow", len(results))
+
+
 async def poll_once() -> None:
     """Jeden pelny cykl pollingu (flow + incydenty) + odswiezenie raportow LLM."""
     global _last_poll_ts
@@ -215,6 +238,16 @@ def start_scheduler() -> AsyncIOScheduler:
         "interval",
         seconds=settings.portcalls_poll_interval_seconds,
         id="portcalls_poll",
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(),
+    )
+    # Job pogodowy Open-Meteo - co 30 min, startuje od razu.
+    _scheduler.add_job(
+        poll_weather,
+        "interval",
+        seconds=settings.weather_poll_interval_seconds,
+        id="weather_poll",
         max_instances=1,
         coalesce=True,
         next_run_time=datetime.now(),

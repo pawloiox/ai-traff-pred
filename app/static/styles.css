@@ -182,6 +182,40 @@ html, body {
 .ratio-fill { height: 100%; }
 .ratio-fill.ok { background: var(--ok); }
 .ratio-fill.warning { background: var(--warning); }
+.ratio-fill.critical { background: var(--critical-red); color: #fff; }
+
+.badge.info { background: var(--primary); color: #fff; }
+
+.prediction-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card-bg);
+  padding: 12px 16px;
+  border-radius: var(--border-radius);
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+
+.prediction-controls label { font-weight: 500; color: var(--text-muted); min-width: 180px; }
+
+.prediction-controls input[type="range"] { flex-grow: 1; cursor: pointer; }
+
+.action-btn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.action-btn:hover { opacity: 0.8; }
+
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .ratio-fill.critical { background: var(--critical); }
 .ratio-fill.unknown { background: var(--unknown); }
 
@@ -381,3 +415,282 @@ html, body {
 .leaflet-popup-content-wrapper {
   transition: background-color .3s ease, color .3s ease, border-color .3s ease, box-shadow .3s ease;
 }
+
+/* ===================== Analytics Panel ===================== */
+
+.analytics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.analytics-title {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), #a371f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.analytics-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analytics-controls label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.analytics-controls select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 200px;
+}
+
+.analytics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.analytics-section {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.analytics-chart-section {
+  min-height: 220px;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 200px;
+  width: 100%;
+}
+
+.chart-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* --- Risk scoring cards --- */
+
+.risk-card {
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--risk-color, var(--accent));
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.risk-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.risk-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.risk-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.risk-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.risk-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.risk-road {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.risk-score-badge {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  min-width: 44px;
+  text-align: center;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.risk-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.risk-components {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.risk-comp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.comp-label {
+  width: 60px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.comp-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.comp-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+
+.comp-val {
+  width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.risk-temporal {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.temp-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+
+.temp-badge.rush {
+  background: rgba(248, 81, 73, 0.12);
+  border-color: rgba(248, 81, 73, 0.3);
+  color: var(--critical);
+}
+
+.temp-badge.weekend {
+  background: rgba(88, 166, 255, 0.12);
+  border-color: rgba(88, 166, 255, 0.3);
+  color: var(--accent);
+}
+
+.temp-badge.holiday {
+  background: rgba(163, 113, 247, 0.12);
+  border-color: rgba(163, 113, 247, 0.3);
+  color: #a371f7;
+}
+
+/* --- Weather cards --- */
+
+.weather-card {
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.weather-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.weather-icon-big {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.weather-port {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.weather-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.weather-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.weather-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.stat-icon {
+  font-size: 14px;
+}
+
+.weather-penalty {
+  font-size: 11px;
+  font-weight: 600;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+

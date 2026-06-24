@@ -44,13 +44,22 @@
           <button class="tab" data-tab="reports">Raporty</button>
           <button class="tab" data-tab="incidents">Incydenty</button>
           <button class="tab" data-tab="predictions">Predykcja</button>
+          <button class="tab" data-tab="analytics">Analityka</button>
         </nav>
         <div class="tab-panels">
           <section class="panel active" id="panel-status"></section>
           <section class="panel" id="panel-bottlenecks"></section>
           <section class="panel" id="panel-reports"></section>
           <section class="panel" id="panel-incidents"></section>
-          <section class="panel" id="panel-predictions"></section>
+          <section class="panel" id="panel-predictions">
+            <div class="prediction-controls">
+              <label for="predictionHorizon">Horyzont prognozy: <span id="horizonLabel">1</span>h</label>
+              <input type="range" id="predictionHorizon" min="1" max="12" value="1" />
+              <button id="trainBtn" class="action-btn" title="Zbuduj model ML na podstawie historii">Trenuj ML</button>
+            </div>
+            <div id="predictions-content"></div>
+          </section>
+          <section class="panel" id="panel-analytics"></section>
         </div>
       </aside>
     </div>
@@ -63,6 +72,8 @@
   ></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
+  <script src="/static/analytics.js"></script>
 </body>
 </html>
