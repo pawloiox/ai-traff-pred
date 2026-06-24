@@ -513,8 +513,8 @@ function initFirebasePush() {
   const btn = document.getElementById("notifyBtn");
   if (!btn) return;
   
-  if (!firebaseConfig.apiKey) {
-      console.warn("Brak konfiguracji Firebase. Przycisk powiadomień zostanie ukryty.");
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "..." || firebaseConfig.apiKey.includes("TWOJ_KLUCZ")) {
+      console.warn("Brak prawdziwej konfiguracji Firebase. Przycisk powiadomień zostanie ukryty.");
       btn.style.display = "none";
       return;
   }
@@ -543,9 +543,11 @@ function initFirebasePush() {
               }
           } catch (err) {
               console.error("Błąd podczas pobierania tokena: ", err);
+              alert("Błąd podczas rejestracji tokena. Sprawdź konsolę przeglądarki.");
           }
       });
   } catch (err) {
       console.error("Błąd inicjalizacji Firebase:", err);
+      if (btn) btn.style.display = "none";
   }
 }
