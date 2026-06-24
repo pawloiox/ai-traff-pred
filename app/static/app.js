@@ -255,28 +255,6 @@ function initControls() {
       }, 300);
     });
   }
-
-  const trainBtn = document.getElementById("trainBtn");
-  if (trainBtn) {
-    trainBtn.addEventListener("click", async () => {
-      trainBtn.disabled = true;
-      trainBtn.textContent = "Trenowanie...";
-      try {
-        const res = await fetch("/api/ml/train", { method: "POST" });
-        const data = await res.json();
-        if (data.status === "ok") {
-          alert(`Model przetrenowany pomyslnie! (Probek: ${data.samples}, Czas: ${data.elapsed_seconds}s)`);
-        } else {
-          alert(`Blad trenowania: ${data.message}`);
-        }
-      } catch (err) {
-        alert("Blad polaczenia: " + err.message);
-      } finally {
-        trainBtn.disabled = false;
-        trainBtn.textContent = "Trenuj ML";
-      }
-    });
-  }
 }
 
 function toggleLayer(layer, on) {
