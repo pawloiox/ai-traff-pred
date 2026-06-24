@@ -124,7 +124,7 @@ async def fetch(ts: Optional[float] = None) -> List[Dict[str, Any]]:
 
     Schedulera ani zapisu do bazy tu nie ma - to dolozymy w wpieciu schedulera (KROK C).
     """
-    client = httpx.AsyncClient(timeout=15.0)
+    client = httpx.AsyncClient(trust_env=False, timeout=15.0)
     try:
         resp = await client.get(VEHICLES_URL)
         resp.raise_for_status()

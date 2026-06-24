@@ -71,6 +71,7 @@ async function init() {
   initMap();
   initControls();
   initTabs();
+  initFirebasePush();
   await refreshAll();
   setInterval(refreshAll, REFRESH_MS);
 }
@@ -392,7 +393,10 @@ function renderReports() {
           <b>Rekomendacja:</b> ${r.recommendation}
           ${r.prediction ? `<br/><b>Prognoza (${r.prediction.horizon_minutes} min):</b> ${fmtPct(r.prediction.predicted_ratio)}` : ""}
         </div>
-        ${cardTime("Raport:", r.ts)}
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+          ${cardTime("Raport:", r.ts)}
+          <a href="/api/reports/${r.point_id}/pdf" target="_blank" style="padding: 4px 10px; background-color: #2ea043; color: white; text-decoration: none; border-radius: 5px; font-size: 12px; font-weight: bold; margin-bottom: 5px; margin-right: 5px;">Pobierz PDF</a>
+        </div>
       </div>`;
     })
     .join("");
@@ -446,3 +450,54 @@ init().catch((err) => {
   document.getElementById("panel-status").innerHTML = emptyMsg("Blad inicjalizacji: " + err.message);
   console.error(err);
 });
+
+// --- Firebase Push Notification Logic ---
+const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "..."
+};
+
+function initFirebasePush() {
+  const btn = document.getElementById("notifyBtn");
+  if (!btn) return;
+  
+  if (!firebaseConfig.apiKey) {
+      console.warn("Brak konfiguracji Firebase. Przycisk powiadomień zostanie ukryty.");
+      btn.style.display = "none";
+      return;
+  }
+
+  try {
+      firebase.initializeApp(firebaseConfig);
+      const messaging = firebase.messaging();
+
+      btn.addEventListener("click", async () => {
+          try {
+              const permission = await Notification.requestPermission();
+              if (permission === "granted") {
+                  // VAPID KEY do powiadomień Web. Musisz go również skopiować z ustawień Cloud Messaging
+                  const token = await messaging.getToken({ vapidKey: "BHI26JLkWg3SJIDkyVVHVNGra9IZ-F1PmcG-i215RzkmQABlujrF4KW1FLshaLb1hzuBIWTfPeZDN1qwnM8V9OM" });
+                  // const token = await messaging.getToken(); // jeśli bez VAPID
+                  if (token) {
+                      await fetch("/api/notifications/subscribe", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ token: token, role: "driver" })
+                      });
+                      btn.textContent = "Subskrypcja aktywna";
+                      btn.disabled = true;
+                      alert("Zasubskrybowano pomyślnie. Otrzymasz powiadomienie przy krytycznym zatorze.");
+                  }
+              }
+          } catch (err) {
+              console.error("Błąd podczas pobierania tokena: ", err);
+          }
+      });
+  } catch (err) {
+      console.error("Błąd inicjalizacji Firebase:", err);
+  }
+}

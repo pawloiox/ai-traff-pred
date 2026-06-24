@@ -140,7 +140,7 @@ async def fetch(client: Optional[httpx.AsyncClient] = None) -> List[Dict[str, An
     Bez zapisu do bazy - dane do skladnika PresjaPortu (KROK E).
     """
     own = client is None
-    client = client or httpx.AsyncClient(timeout=25.0)
+    client = client or httpx.AsyncClient(trust_env=False, timeout=25.0)
     try:
         resp = await client.get(
             EXPECTED_SHIPS_URL, follow_redirects=True,

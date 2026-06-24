@@ -77,7 +77,7 @@ class TomTomClient:
 
     def __init__(self, api_key: Optional[str] = None, timeout: float = 15.0) -> None:
         self.api_key = api_key or settings.tomtom_api_key
-        self._client = httpx.AsyncClient(timeout=timeout)
+        self._client = httpx.AsyncClient(trust_env=False, timeout=timeout)
 
     async def aclose(self) -> None:
         await self._client.aclose()

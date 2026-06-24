@@ -27,6 +27,9 @@ _cache: Dict[str, Any] = {"ts": None, "reports": []}
 # Klucz: sygnatura sytuacji -> {"narrative": {...}, "source": "groq"}.
 _narrative_cache: Dict[str, Dict[str, Any]] = {}
 
+# Słownik do unikania spamu push dla tego samego punktu (cooldown 30 minut)
+_last_pushed_state: Dict[str, float] = {}
+
 _SEVERITY = {"critical": 3, "warning": 2, "ok": 1, "unknown": 0}
 
 
@@ -35,6 +38,8 @@ def _situation_signature(s: Dict[str, Any]) -> str:
     inc = s.get("linked_incident") or {}
     cpi_s = s.get("cpi") or {}
     ship = (cpi_s.get("port_pressure_detail") or {}).get("dominant_ship") or {}
+    w_data = s.get("weather") or {}
+    t_data = s.get("temporal") or {}
     parts = [
         str(s.get("point_id")),
         str(s.get("level")),
@@ -46,6 +51,8 @@ def _situation_signature(s: Dict[str, Any]) -> str:
         str(inc.get("incident_id") or "-"),
         str(cpi_s.get("dominant_component") or "-"),
         str(ship.get("name") or "-"),
+        "w1" if w_data.get("is_raining") else "w0",
+        "t1" if t_data.get("is_rush_hour") else "t0"
     ]
     return "|".join(parts)
 
@@ -143,18 +150,30 @@ def _cause_text(situation: Dict[str, Any]) -> str:
     dom = cpi_s.get("dominant_component")
     ship = (cpi_s.get("port_pressure_detail") or {}).get("dominant_ship") or {}
 
+    weather_info = ""
+    w_data = situation.get("weather")
+    if w_data and w_data.get("is_raining"):
+        weather_info = " (Dodatkowo: ulewny deszcz pogarsza sytuację)"
+        
+    temporal_info = ""
+    t_data = situation.get("temporal")
+    if t_data and t_data.get("is_rush_hour"):
+        temporal_info = " (Dodatkowo: obecne godziny szczytu)"
+
+    base_cause = "brak zgloszonego incydentu - prawdopodobnie ruch godziny szczytu / natezenie pojazdow"
     if dom == "port_pressure" and ship.get("name"):
-        return (
+        base_cause = (
             f"dominuje presja portu - statek {ship['name']} (DWT {round(ship['dwt'])}) "
             f"cumuje wkrotce, spodziewana fala ciezarowek z terminala"
         )
-    if incident:
-        return _incident_text(incident)
-    if dom == "trend":
-        return "dominuje narastajaca dynamika ruchu (trend wzrostowy w ostatnich pomiarach)"
-    if dom == "baseline":
-        return "dominuje typowe natezenie ruchu o tej porze (wzorzec godziny i dnia tygodnia)"
-    return "brak zgloszonego incydentu - prawdopodobnie ruch godziny szczytu / natezenie pojazdow"
+    elif incident:
+        base_cause = _incident_text(incident)
+    elif dom == "trend":
+        base_cause = "dominuje narastajaca dynamika ruchu (trend wzrostowy w ostatnich pomiarach)"
+    elif dom == "baseline":
+        base_cause = "dominuje typowe natezenie ruchu o tej porze (wzorzec godziny i dnia tygodnia)"
+
+    return base_cause + weather_info + temporal_info
 
 
 def _recommendation(situation: Dict[str, Any], has_incident: bool) -> str:
@@ -264,7 +283,7 @@ async def refresh_reports(limit: int = 8) -> List[Dict[str, Any]]:
     # 2) Jedno zbiorcze zapytanie do Groq dla zmienionych sytuacji.
     if to_generate and settings.groq_enabled and settings.groq_api_key:
         subset = [situations[i] for i in to_generate]
-        async with httpx.AsyncClient(timeout=settings.groq_timeout) as client:
+        async with httpx.AsyncClient(trust_env=False, timeout=settings.groq_timeout) as client:
             batch = await groq_client.generate_reports_batch(subset, client=client)
         for local_idx, global_idx in enumerate(to_generate):
             narrative = batch[local_idx]
@@ -284,6 +303,19 @@ async def refresh_reports(limit: int = 8) -> List[Dict[str, Any]]:
             reports.append(_assemble(situation, narrative, sources[i], ts))
         else:
             reports.append(_assemble(situation, _rule_based_narrative(situation), "rule", ts))
+
+    from backend.services.notifications.push import send_push_notification
+    for r in reports:
+        pid = r["point_id"]
+        # Wyzwalacz: status critical lub zamknięta droga
+        if r["level"] == "critical" or r["road_closure"]:
+            last_push = _last_pushed_state.get(pid, 0)
+            if ts - last_push > 1800:  # 30 minut cooldownu
+                title = r.get("headline") or f"Utrudnienia: {r.get('point_name')}"
+                body = r.get("recommendation") or "Spodziewaj się utrudnień na dojeździe do portu."
+                # Asynchroniczne wywołanie by nie blokować cyklu (nieużywane w tym projekcie asynchro dla pusha, więc normalnie)
+                send_push_notification(title, body)
+                _last_pushed_state[pid] = ts
 
     # 4) Utrzymanie rozmiaru cache - tylko sygnatury z biezacego cyklu.
     active = set(signatures)

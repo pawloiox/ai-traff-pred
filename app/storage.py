@@ -51,6 +51,12 @@ CREATE TABLE IF NOT EXISTS incidents (
     lon REAL
 );
 CREATE INDEX IF NOT EXISTS idx_inc_port_ts ON incidents(port_id, snapshot_ts);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    token TEXT PRIMARY KEY,
+    role TEXT,
+    created_at REAL
+);
 """
 
 
@@ -126,6 +132,14 @@ class Storage:
                     """,
                     rows,
                 )
+            self._conn.commit()
+
+    def save_push_subscription(self, token: str, role: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO push_subscriptions (token, role, created_at) VALUES (?, ?, ?)",
+                (token, role, time.time())
+            )
             self._conn.commit()
 
     # --- odczyt --------------------------------------------------------------

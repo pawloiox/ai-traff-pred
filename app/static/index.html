@@ -25,6 +25,7 @@
         <select id="portSelect"></select>
         <label class="toggle"><input type="checkbox" id="flowToggle" checked /> Flow</label>
         <label class="toggle"><input type="checkbox" id="incidentsToggle" checked /> Incydenty</label>
+        <button id="notifyBtn" title="Włącz powiadomienia">Włącz Powiadomienia</button>
         <button id="refreshBtn">Odswiez teraz</button>
         <button id="themeToggle" title="Przelacz tryb jasny/ciemny" aria-label="Przelacz tryb jasny/ciemny">
           <span class="theme-icon theme-icon--dark">🌙</span>
@@ -60,6 +61,8 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

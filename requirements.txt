@@ -7,3 +7,5 @@ pandas==3.0.2
 openpyxl==3.1.5
 python-dotenv==1.0.1
 pydantic==2.10.4
+fpdf2==2.8.1
+firebase-admin==6.5.0

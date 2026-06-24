@@ -34,7 +34,9 @@ SYSTEM_PROMPT = (
     "Jestes asystentem dyzurnego w centrum dowodzenia portu morskiego. "
     "Na podstawie ustrukturyzowanych danych o ruchu na drodze dojazdowej do terminala "
     "tworzysz krotki raport operacyjny po polsku. Pisz konkretnie, rzeczowo i zwiezle, "
-    "jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n\n"
+    "jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n"
+    "Jeśli pogoda wskazuje na deszcz (Rain: True) lub czas wskazuje na godziny szczytu (Rush Hour: True), explicitly "
+    "mention how they contribute to the delay in the 'cause' and 'summary' fields.\n\n"
     "Zwroc WYLACZNIE obiekt JSON o polach:\n" + _FIELDS_DESC +
     "Nie dodawaj zadnego tekstu poza obiektem JSON."
 )
@@ -43,7 +45,9 @@ SYSTEM_PROMPT_BATCH = (
     "Jestes asystentem dyzurnego w centrum dowodzenia portu morskiego. "
     "Na podstawie listy ustrukturyzowanych sytuacji ruchu na drogach dojazdowych do "
     "terminali tworzysz krotkie raporty operacyjne po polsku. Pisz konkretnie, rzeczowo "
-    "i zwiezle, jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n\n"
+    "i zwiezle, jezykiem sluzb ruchu. Odbiorca to dyspozytor sterujacy ruchem ciezarowek.\n"
+    "Jeśli pogoda wskazuje na deszcz (Rain: True) lub czas wskazuje na godziny szczytu (Rush Hour: True), explicitly "
+    "mention how they contribute to the delay in the 'cause' and 'summary' fields.\n\n"
     "Otrzymasz liste sytuacji, kazda oznaczona polem id. Zwroc WYLACZNIE obiekt JSON "
     'w formacie: {"reports": [{"id": <to samo id>, "headline": ..., "cause": ..., '
     '"recommendation": ..., "summary": ...}, ...]}.\n'
@@ -85,6 +89,14 @@ def _situation_to_prompt(s: Dict[str, Any]) -> str:
         )
     else:
         lines.append("Pobliski incydent TomTom: brak")
+
+    w_data = s.get('weather') or {}
+    w_text = f"Weather Rain: {w_data.get('is_raining', False)}, Wind: {w_data.get('wind_speed', 0)}" if w_data else "No weather anomaly"
+    lines.append(f"Pogoda: {w_text}")
+    
+    t_data = s.get('temporal') or {}
+    t_text = f"Rush Hour: {t_data.get('is_rush_hour', False)}" if t_data else "Standard time"
+    lines.append(f"Kontekst czasowy: {t_text}")
 
     # Rozklad CPI (Indeks Presji Zatorowej) - dominujacy skladnik = przyczyna.
     cpi_s = s.get("cpi")
@@ -130,7 +142,7 @@ async def generate_report(
 
     owns_client = client is None
     if owns_client:
-        client = httpx.AsyncClient(timeout=settings.groq_timeout)
+        client = httpx.AsyncClient(trust_env=False, timeout=settings.groq_timeout)
     try:
         resp = await client.post(GROQ_URL, json=payload, headers=headers)
         resp.raise_for_status()
@@ -192,7 +204,7 @@ async def generate_reports_batch(
 
     owns_client = client is None
     if owns_client:
-        client = httpx.AsyncClient(timeout=settings.groq_timeout)
+        client = httpx.AsyncClient(trust_env=False, timeout=settings.groq_timeout)
     try:
         resp = await client.post(GROQ_URL, json=payload, headers=headers)
         resp.raise_for_status()

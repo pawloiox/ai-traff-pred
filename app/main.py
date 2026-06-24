@@ -8,9 +8,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Response, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from . import analysis, reports, scheduler
 from .ports import PORTS
@@ -104,6 +105,24 @@ def api_reports(limit: int = Query(8, ge=1, le=50)):
         "reports": reports.get_cached_reports(limit),
     }
 
+@app.get("/api/reports/{point_id}/pdf")
+def api_report_pdf(point_id: str):
+    from backend.services.reports.pdf_generator import generate_pdf_bytes
+
+    cached = reports.get_cached_reports(limit=50)
+    # Szukamy raportu dla tego punktu
+    report = next((r for r in cached if r["point_id"] == point_id), None)
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Raport dla podanego punktu nie istnieje lub wygasl")
+        
+    pdf_data = generate_pdf_bytes(report)
+    return Response(
+        content=pdf_data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=raport_{point_id}.pdf"}
+    )
+
 
 @app.get("/api/tristar")
 def api_tristar():
@@ -139,6 +158,16 @@ def api_zditm():
 async def api_refresh():
     await scheduler.poll_once()
     return {"status": "ok", "last_poll": scheduler.last_poll_ts()}
+
+class PushSubscription(BaseModel):
+    token: str
+    role: str = "driver"
+
+@app.post("/api/notifications/subscribe")
+def api_subscribe(sub: PushSubscription):
+    from .storage import storage
+    storage.save_push_subscription(sub.token, sub.role)
+    return {"status": "ok", "token_saved": True}
 
 
 @app.get("/")

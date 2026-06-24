@@ -51,7 +51,7 @@ class TristarClient:
     """Asynchroniczny klient TRISTAR. Endpointy publiczne - bez klucza API."""
 
     def __init__(self, timeout: float = 15.0) -> None:
-        self._client = httpx.AsyncClient(timeout=timeout)
+        self._client = httpx.AsyncClient(trust_env=False, timeout=timeout)
         # Cache midpointow geometrii: segment_id -> (lat, lon). Geometria jest
         # statyczna (lastUpdate 2018), wiec pobieramy ja raz na zycie procesu.
         self._segment_midpoints: Optional[Dict[int, Tuple[float, float]]] = None
