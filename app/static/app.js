@@ -378,27 +378,47 @@ function ensureToastContainer() {
 
 function showToast({ title, body = "", level = "info", timeout = 6000 }) {
   const container = ensureToastContainer();
-  const t = document.createElement("div");
-  t.className = `toast toast-${level}`;
-  t.innerHTML =
-    `<div class="toast-content">` +
-      `<div class="toast-title"></div>` +
-      (body ? `<div class="toast-body"></div>` : "") +
-    `</div>` +
-    `<button class="toast-close" type="button" aria-label="Zamknij">&times;</button>`;
-  t.querySelector(".toast-title").textContent = title;
-  if (body) t.querySelector(".toast-body").textContent = body;
+
+  // Wrapper odpowiada za pozycje + animacje (slide-in / fade-out).
+  const wrap = document.createElement("div");
+  wrap.className = "toast";
+
+  // Wnetrze to dokladnie taka sama karta jak w prawym menu (.card .level-*).
+  const card = document.createElement("div");
+  card.className = `card level-${level}`;
+
+  const h = document.createElement("h3");
+  h.textContent = title;
+  card.appendChild(h);
+
+  if (body) {
+    const b = document.createElement("div");
+    b.className = "body";
+    b.textContent = body;
+    card.appendChild(b);
+  }
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.setAttribute("aria-label", "Zamknij");
+  close.innerHTML = "&times;";
+  card.appendChild(close);
+
+  wrap.appendChild(card);
 
   let removed = false;
   const remove = () => {
     if (removed) return;
     removed = true;
-    t.classList.add("toast-hide");
-    setTimeout(() => t.remove(), 400);
+    wrap.classList.add("toast-hide");
+    setTimeout(() => wrap.remove(), 450);
   };
-  t.querySelector(".toast-close").addEventListener("click", remove);
-  container.appendChild(t);
-  requestAnimationFrame(() => t.classList.add("toast-show"));
+  close.addEventListener("click", remove);
+
+  container.appendChild(wrap);
+  // podwojny rAF — pewne wyzwolenie tranzycji wjazdu
+  requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add("toast-show")));
   if (timeout) setTimeout(remove, timeout);
 
   // Nie zalewamy ekranu: max 4 widoczne
