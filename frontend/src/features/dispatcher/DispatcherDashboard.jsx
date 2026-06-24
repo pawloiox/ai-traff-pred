@@ -499,7 +499,7 @@ function AnalyticsPanel({ riskScores, weather, portNames, history, dailyPattern 
 
 /* ============================ dashboard ============================ */
 
-const TABS = ["Stan", "Wąskie gardła", "Incydenty", "Raporty", "Predykcja", "Analityka"];
+const TABS = ["Stan", "Incydenty", "Raporty", "Predykcja", "Analityka"];
 
 export default function DispatcherDashboard() {
   const [tab, setTab] = useState("Stan");
@@ -684,7 +684,7 @@ export default function DispatcherDashboard() {
   const portPointIds = useMemo(() => new Set((selectedPort?.points || []).map((p) => p.id)), [selectedPort]);
   const statusPts = status.points.filter((p) => portPointIds.has(p.point_id));
   const predPts = predictions.filter((p) => portPointIds.has(p.point_id));
-  const bottlePts = bottlenecks.filter((b) => !b.point_id || portPointIds.has(b.point_id));
+
   const incidentPts = incidentsList.filter((inc) => inc.port_id === selectedPort?.id);
   const riskPts = riskScores.filter((r) => r.port_id === selectedPort?.id);
   const portNames = useMemo(() => Object.fromEntries(ports.map((p) => [p.id, p.name])), [ports]);
@@ -778,7 +778,7 @@ export default function DispatcherDashboard() {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {tab === "Stan" && <StanPanel points={statusPts} lastPoll={status.last_poll} />}
-            {tab === "Wąskie gardła" && <BottlenecksPanel items={bottlePts} />}
+
             {tab === "Incydenty" && <IncidentsPanel items={incidentPts} />}
             {tab === "Raporty" && <ReportsPanel reports={reports} onGenerate={generateReport} generating={generating} />}
             {tab === "Predykcja" && <PredictionPanel predictions={predPts} horizon={horizon} setHorizon={setHorizon} mlActive={mlActive} />}
