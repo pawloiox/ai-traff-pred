@@ -523,12 +523,13 @@ init().catch((err) => {
 
 // --- Firebase Push Notification Logic ---
 const firebaseConfig = {
-  apiKey: "...",
-  authDomain: "...",
-  projectId: "...",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "..."
+  apiKey: "AIzaSyDZmi5sFcGz3PjdRPanAQcj54oeENo2ejI",
+  authDomain: "hackathon-f95fe.firebaseapp.com",
+  projectId: "hackathon-f95fe",
+  storageBucket: "hackathon-f95fe.firebasestorage.app",
+  messagingSenderId: "1056217574820",
+  appId: "1:1056217574820:web:6090e83629e951d6212531",
+  measurementId: "G-21PP3H88NE"
 };
 
 function initFirebasePush() {
